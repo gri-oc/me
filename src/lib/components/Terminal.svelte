@@ -236,6 +236,14 @@ try: konami`,
 		position: relative;
 	}
 
+	.terminal-wrapper :global(.terminal-container),
+	.terminal-wrapper :global([class*="terminal"]) {
+		border: none !important;
+		outline: none !important;
+		box-shadow: none !important;
+		border-radius: 0 !important;
+	}
+
 	/* CRT scanlines overlay */
 	.scanlines {
 		position: fixed;

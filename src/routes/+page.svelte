@@ -20,7 +20,6 @@
 	:global(body) {
 		background: var(--page-bg, #0a0a0a);
 		cursor: default;
-		transition: background 0.3s ease;
 		color: #c0c0c0;
 		font-family: 'JetBrains Mono', monospace;
 		font-size: 1.1rem;
