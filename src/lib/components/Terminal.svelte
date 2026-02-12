@@ -165,9 +165,9 @@
 	}
 
 	function scrollToBottom() {
-		if (terminalEl) {
-			terminalEl.scrollTop = terminalEl.scrollHeight;
-		}
+		requestAnimationFrame(() => {
+			window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+		});
 	}
 
 	function sleep(ms: number) {
