@@ -56,6 +56,9 @@
 	};
 
 	$: activeTheme = themes[currentThemeName];
+	$: if (typeof document !== 'undefined') {
+		document.body.style.setProperty('--page-bg', activeTheme.background);
+	}
 
 	const structure = {
 		'about.txt': `lobb 🐸
