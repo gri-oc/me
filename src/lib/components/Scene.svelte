@@ -4,100 +4,124 @@
 	import * as THREE from 'three';
 
 	let groupRef: THREE.Group;
-	let eyeL: THREE.Mesh;
-	let eyeR: THREE.Mesh;
-	let pupilL: THREE.Mesh;
-	let pupilR: THREE.Mesh;
-	let mouthRef: THREE.Mesh;
-
-	let hovered = false;
 	let time = 0;
+	let hovered = false;
 
 	useTask((delta) => {
 		time += delta;
 		if (groupRef) {
-			groupRef.rotation.y = Math.sin(time * 0.5) * 0.15;
+			groupRef.rotation.y += delta * 0.3;
+			groupRef.position.y = Math.sin(time * 0.8) * 0.05;
 		}
 	});
 
-	const bodyColor = '#22c55e';
-	const bellyColor = '#86efac';
-	const eyeWhite = '#f0fdf4';
-	const pupilColor = '#0a0a0a';
-	const mouthColor = '#16a34a';
+	const green = '#22c55e';
+	const darkGreen = '#16a34a';
+	const glow = '#4ade80';
+	const dark = '#111';
 </script>
 
 <!-- Lights -->
-<T.AmbientLight intensity={0.6} />
-<T.DirectionalLight position={[5, 5, 5]} intensity={1} />
-<T.PointLight position={[-3, 2, 4]} intensity={0.5} color="#4ade80" />
+<T.AmbientLight intensity={0.3} />
+<T.PointLight position={[3, 4, 5]} intensity={0.8} color={glow} />
+<T.PointLight position={[-4, 2, -3]} intensity={0.4} color="#0ff" />
+<T.PointLight position={[0, -3, 2]} intensity={0.2} color="#f0f" />
 
 <!-- Camera -->
-<T.PerspectiveCamera makeDefault position={[0, 1, 5]} fov={45}>
+<T.PerspectiveCamera makeDefault position={[0, 0.5, 4.5]} fov={40}>
 	<OrbitControls
 		enableZoom={false}
 		enablePan={false}
 		autoRotate
-		autoRotateSpeed={1}
+		autoRotateSpeed={0.5}
 		minPolarAngle={Math.PI / 3}
-		maxPolarAngle={Math.PI / 1.8}
+		maxPolarAngle={Math.PI / 1.7}
 	/>
 </T.PerspectiveCamera>
 
-<!-- Frog -->
-<Float floatIntensity={2} speed={2}>
+<Float floatIntensity={1} speed={1.5}>
 	<T.Group bind:ref={groupRef}>
-		<!-- Body -->
-		<T.Mesh position={[0, 0, 0]} scale={[1.3, 1, 1.1]}
+		<!-- Body — wireframe sphere -->
+		<T.Mesh
 			on:pointerenter={() => hovered = true}
 			on:pointerleave={() => hovered = false}
 		>
-			<T.SphereGeometry args={[1, 32, 32]} />
-			<T.MeshStandardMaterial color={hovered ? '#4ade80' : bodyColor} />
+			<T.IcosahedronGeometry args={[1, 1]} />
+			<T.MeshStandardMaterial
+				color={hovered ? glow : green}
+				wireframe
+				transparent
+				opacity={0.7}
+			/>
 		</T.Mesh>
 
-		<!-- Belly -->
-		<T.Mesh position={[0, -0.1, 0.55]} scale={[0.9, 0.75, 0.5]}>
-			<T.SphereGeometry args={[1, 32, 32]} />
-			<T.MeshStandardMaterial color={bellyColor} />
+		<!-- Inner core -->
+		<T.Mesh scale={0.4}>
+			<T.OctahedronGeometry args={[1, 0]} />
+			<T.MeshStandardMaterial
+				color={glow}
+				emissive={glow}
+				emissiveIntensity={0.5}
+				transparent
+				opacity={0.6}
+			/>
 		</T.Mesh>
 
 		<!-- Eye Left -->
-		<T.Mesh bind:ref={eyeL} position={[-0.45, 0.75, 0.5]} scale={[0.4, 0.45, 0.4]}>
-			<T.SphereGeometry args={[1, 32, 32]} />
-			<T.MeshStandardMaterial color={eyeWhite} />
+		<T.Mesh position={[-0.35, 0.4, 0.75]}>
+			<T.SphereGeometry args={[0.12, 16, 16]} />
+			<T.MeshStandardMaterial
+				color="#fff"
+				emissive="#fff"
+				emissiveIntensity={0.3}
+			/>
 		</T.Mesh>
-		<T.Mesh bind:ref={pupilL} position={[-0.45, 0.75, 0.85]}>
-			<T.SphereGeometry args={[0.18, 16, 16]} />
-			<T.MeshStandardMaterial color={pupilColor} />
+		<T.Mesh position={[-0.35, 0.4, 0.88]}>
+			<T.SphereGeometry args={[0.06, 8, 8]} />
+			<T.MeshStandardMaterial color={dark} />
 		</T.Mesh>
 
 		<!-- Eye Right -->
-		<T.Mesh bind:ref={eyeR} position={[0.45, 0.75, 0.5]} scale={[0.4, 0.45, 0.4]}>
-			<T.SphereGeometry args={[1, 32, 32]} />
-			<T.MeshStandardMaterial color={eyeWhite} />
+		<T.Mesh position={[0.35, 0.4, 0.75]}>
+			<T.SphereGeometry args={[0.12, 16, 16]} />
+			<T.MeshStandardMaterial
+				color="#fff"
+				emissive="#fff"
+				emissiveIntensity={0.3}
+			/>
 		</T.Mesh>
-		<T.Mesh bind:ref={pupilR} position={[0.45, 0.75, 0.85]}>
-			<T.SphereGeometry args={[0.18, 16, 16]} />
-			<T.MeshStandardMaterial color={pupilColor} />
-		</T.Mesh>
-
-		<!-- Mouth -->
-		<T.Mesh bind:ref={mouthRef} position={[0, -0.2, 0.95]} rotation={[0.2, 0, 0]} scale={[0.5, 0.12, 0.1]}>
-			<T.BoxGeometry args={[1, 1, 1]} />
-			<T.MeshStandardMaterial color={mouthColor} />
+		<T.Mesh position={[0.35, 0.4, 0.88]}>
+			<T.SphereGeometry args={[0.06, 8, 8]} />
+			<T.MeshStandardMaterial color={dark} />
 		</T.Mesh>
 
-		<!-- Left Foot -->
-		<T.Mesh position={[-0.6, -1, 0.3]} rotation={[-0.3, 0.3, 0]} scale={[0.4, 0.12, 0.55]}>
-			<T.BoxGeometry args={[1, 1, 1]} />
-			<T.MeshStandardMaterial color={bodyColor} />
+		<!-- Floating ring -->
+		<T.Mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+			<T.TorusGeometry args={[1.5, 0.015, 16, 64]} />
+			<T.MeshStandardMaterial
+				color={glow}
+				emissive={glow}
+				emissiveIntensity={0.8}
+				transparent
+				opacity={0.3}
+			/>
 		</T.Mesh>
 
-		<!-- Right Foot -->
-		<T.Mesh position={[0.6, -1, 0.3]} rotation={[-0.3, -0.3, 0]} scale={[0.4, 0.12, 0.55]}>
-			<T.BoxGeometry args={[1, 1, 1]} />
-			<T.MeshStandardMaterial color={bodyColor} />
-		</T.Mesh>
+		<!-- Scattered particles -->
+		{#each Array(20) as _, i}
+			{@const angle = (i / 20) * Math.PI * 2}
+			{@const radius = 1.8 + Math.sin(i * 1.7) * 0.4}
+			{@const y = Math.cos(i * 2.3) * 0.8}
+			<T.Mesh position={[Math.cos(angle) * radius, y, Math.sin(angle) * radius]}>
+				<T.BoxGeometry args={[0.03, 0.03, 0.03]} />
+				<T.MeshStandardMaterial
+					color={glow}
+					emissive={glow}
+					emissiveIntensity={1}
+					transparent
+					opacity={0.5}
+				/>
+			</T.Mesh>
+		{/each}
 	</T.Group>
 </Float>

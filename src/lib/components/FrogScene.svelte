@@ -12,10 +12,9 @@
 <style>
 	.canvas-wrapper {
 		width: 100%;
-		height: 400px;
-		border-radius: 16px;
+		height: 450px;
+		border-radius: 2px;
 		overflow: hidden;
-		border: 1px solid #222;
-		background: #0d0d0d;
+		background: transparent;
 	}
 </style>
