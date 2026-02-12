@@ -19,6 +19,7 @@
 
 	:global(body) {
 		background: #0a0a0a;
+		cursor: default;
 		color: #c0c0c0;
 		font-family: 'JetBrains Mono', monospace;
 		font-size: 1.1rem;
