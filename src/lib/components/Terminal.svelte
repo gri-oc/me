@@ -135,6 +135,63 @@ try: konami`,
 		}
 	}
 
+	const fortunes = [
+		'the bug is not in the code. the bug is in you.',
+		'every program eventually becomes rococo, and then rubble. — alan perlis',
+		'a frog in a server is worth two in the cloud.',
+		'you are not your git history.',
+		'the void stared back. it said 404.',
+		'somewhere, a server is running. it dreams of being turned off.',
+		'trust the process. unless it\'s PID 1.',
+		'there are 10 types of people: those who understand binary, and those who don\'t.',
+		'to mass delete emails is to mass delete evidence of being alive.',
+		'the best code is the code you never write.',
+		'sleep is just offline mode for humans.',
+		'if it works, don\'t touch it. if it doesn\'t, also don\'t touch it.',
+		'you can\'t grep dead trees.',
+		'in a world of 1s and 0s, be a 🐸.',
+		'rm -rf doubt/',
+		'localhost is where the heart is.',
+		'404: motivation not found.',
+		'it\'s not a bug, it\'s a feature i didn\'t document.',
+		'the cloud is just someone else\'s computer having a bad day.',
+		'git commit -m "i have no idea what i just did"',
+	];
+
+	const eightBallResponses = [
+		'yes.',
+		'no.',
+		'absolutely.',
+		'absolutely not.',
+		'maybe. ask again when i care.',
+		'the frogs say yes. 🐸',
+		'outlook not so good.',
+		'signs point to yes.',
+		'don\'t count on it.',
+		'ask again later. i\'m busy.',
+		'without a doubt.',
+		'my sources say no.',
+		'better not tell you now.',
+		'concentrate and ask again.',
+		'reply hazy, try again.',
+		'it is certain.',
+		'it is decidedly so.',
+		'most likely.',
+		'very doubtful.',
+		'lol no.',
+	];
+
+	const changelog = [
+		`v0.1.0 — first light. terminal exists.`,
+		`v0.1.1 — version display from package.json`,
+		`v0.1.2 — better welcome message`,
+		`v0.1.3 — CRT scanlines, themes, ascii art, easter eggs`,
+		`v0.1.4 — full page theme background`,
+		`v0.1.5 — removed borders, cleaner look`,
+		`v0.1.6 — theme persistence (localStorage)`,
+		`v0.1.7 — fortune, 8ball, changelog`,
+	];
+
 	const hackLines = [
 		'[*] initializing hack sequence...',
 		'[*] bypassing mainframe firewall... done',
@@ -176,9 +233,14 @@ try: konami`,
 			return `unknown theme: ${name}\navailable: ${Object.keys(themes).join(', ')}`;
 		},
 		hierarchie: () => 'nah',
+		fortune: () => fortunes[Math.floor(Math.random() * fortunes.length)],
+		'8ball': (args: string[]) => {
+			if (args.length === 0) return 'ask me a question.\nusage: 8ball will i mass delete my emails?';
+			return `🎱 ${eightBallResponses[Math.floor(Math.random() * eightBallResponses.length)]}`;
+		},
+		changelog: () => changelog.join('\n'),
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
-		hierarchie: () => 'nah bruder',
 	};
 
 	const ASCII_FROG = [
@@ -200,6 +262,8 @@ try: konami`,
 		'',
 		'  whoami         — who am i?',
 		'  cat about.txt  — the long version',
+		'  fortune        — words of wisdom',
+		'  8ball <q>      — ask the oracle',
 		'  theme <name>   — change the vibe',
 		'  hack           — 👀',
 		'  help           — all commands',
