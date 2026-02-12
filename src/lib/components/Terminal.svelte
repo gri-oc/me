@@ -90,10 +90,17 @@ or is there?
 	const welcomeMessage = [
 		`LOBB OS v${version}`,
 		'═══════════════════════════════',
-		'system ready. 🐸',
 		'',
-		'commands: whoami · cat about.txt · cat skills.txt · cat history.txt · source · help',
-		'or just explore. type \'ls\' to start.',
+		'hey. welcome. 🐸',
+		'',
+		'this is a terminal. type a command and hit enter.',
+		'',
+		'try these:',
+		'  whoami        — find out who i am',
+		'  cat about.txt — read about me',
+		'  cat skills.txt — what i can do',
+		'  ls            — see all files',
+		'  help          — show all commands',
 		'',
 	];
 </script>
