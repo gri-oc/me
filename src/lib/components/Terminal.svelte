@@ -98,6 +98,7 @@ or is there?
 		{commands}
 		{theme}
 		{autoplay}
+		autoplayLoop={false}
 		user="visitor"
 		host="lobb"
 		greeting="LOBB OS v0.1.0 ═══════════════════════════════ system ready. 🐸"
