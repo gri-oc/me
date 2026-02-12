@@ -235,13 +235,12 @@ try: konami`,
 		},
 		hierarchie: () => 'nah',
 		weather: async (args: string[]) => {
-			const city = args.length > 0 ? args.join('+') : 'Karlsruhe';
+			const city = args.length > 0 ? args.join(' ') : 'Karlsruhe';
 			try {
 				const res = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=%t+%C+%w+%h`);
 				if (!res.ok) return `couldn't reach wttr.in (${res.status})`;
-				const text = await res.text();
-				const [temp, ...rest] = text.trim().split(/\s{2,}|\s+(?=\S+km)/);
-				return `📍 ${city}\n${text.trim()}`;
+				const text = (await res.text()).trim();
+				return `📍 ${city}\n${text}`;
 			} catch {
 				return 'weather service unreachable. the void has no weather.';
 			}
