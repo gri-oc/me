@@ -190,6 +190,7 @@ try: konami`,
 		`v0.1.5 — removed borders, cleaner look`,
 		`v0.1.6 — theme persistence (localStorage)`,
 		`v0.1.7 — fortune, 8ball, changelog`,
+		`v0.1.8 — weather command (wttr.in)`,
 	];
 
 	const hackLines = [
@@ -233,6 +234,18 @@ try: konami`,
 			return `unknown theme: ${name}\navailable: ${Object.keys(themes).join(', ')}`;
 		},
 		hierarchie: () => 'nah',
+		weather: async (args: string[]) => {
+			const city = args.length > 0 ? args.join('+') : 'Karlsruhe';
+			try {
+				const res = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=%t+%C+%w+%h`);
+				if (!res.ok) return `couldn't reach wttr.in (${res.status})`;
+				const text = await res.text();
+				const [temp, ...rest] = text.trim().split(/\s{2,}|\s+(?=\S+km)/);
+				return `📍 ${city}\n${text.trim()}`;
+			} catch {
+				return 'weather service unreachable. the void has no weather.';
+			}
+		},
 		fortune: () => fortunes[Math.floor(Math.random() * fortunes.length)],
 		'8ball': (args: string[]) => {
 			if (args.length === 0) return 'ask me a question.\nusage: 8ball will i mass delete my emails?';
