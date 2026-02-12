@@ -11,7 +11,7 @@ const config = {
 			fallback: '404.html'
 		}),
 		paths: {
-			base: '/test-repo'
+			base: '/me'
 		}
 	}
 };
