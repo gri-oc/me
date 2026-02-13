@@ -53,6 +53,18 @@
 			scrollbar: '#332200',
 			scrollbarHover: '#553300',
 		},
+		void: {
+			background: '#05000a',
+			foreground: '#8b5cf6',
+			prompt: '#a78bfa',
+			command: '#c4b5fd',
+			directory: '#7c3aed',
+			error: '#dc2626',
+			cursor: '#a78bfa',
+			selection: '#7c3aed30',
+			scrollbar: '#1a0a2e',
+			scrollbarHover: '#2d1b4e',
+		},
 	};
 
 	$: activeTheme = themes[currentThemeName];
@@ -193,6 +205,7 @@ try: konami`,
 		`v0.1.6 — theme persistence (localStorage)`,
 		`v0.1.7 — fortune, 8ball, changelog`,
 		`v0.1.8 — weather command (wttr.in)`,
+		`v0.1.9 — void theme, friday the 13th easter egg`,
 	];
 
 	const hackLines = [
@@ -257,6 +270,12 @@ try: konami`,
 		exit: () => 'there is no escape.',
 	};
 
+	// Friday the 13th detection
+	function isFriday13(): boolean {
+		const now = new Date();
+		return now.getDay() === 5 && now.getDate() === 13;
+	}
+
 	const ASCII_FROG = [
 		'',
 		'   ██╗      ██████╗ ██████╗ ██████╗ ',
@@ -268,7 +287,32 @@ try: konami`,
 		'',
 	];
 
-	const welcomeMessage = [
+	const spookyFortunes = [
+		'something is watching from the other side of the screen.',
+		'the terminal blinks. you didn\'t type anything.',
+		'13 processes running. you only started 12.',
+		'the cursor moved on its own. probably.',
+		'don\'t look behind the terminal.',
+		'friday the 13th. even frogs stay quiet. 🐸',
+	];
+
+	const welcomeMessage = isFriday13() ? [
+		...ASCII_FROG,
+		`v${version}`,
+		'',
+		`⚠ friday the 13th. proceed with caution.`,
+		'',
+		spookyFortunes[Math.floor(Math.random() * spookyFortunes.length)],
+		'',
+		'  whoami         — who am i?',
+		'  cat about.txt  — the long version',
+		'  fortune        — words of wisdom',
+		'  8ball <q>      — ask the oracle',
+		'  theme void     — embrace the darkness',
+		'  hack           — 👀',
+		'  help           — all commands',
+		'',
+	] : [
 		...ASCII_FROG,
 		`v${version}`,
 		'',
