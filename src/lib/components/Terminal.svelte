@@ -206,6 +206,7 @@ try: konami`,
 		`v0.1.7 — fortune, 8ball, changelog`,
 		`v0.1.8 — weather command (wttr.in)`,
 		`v0.1.9 — void theme, friday the 13th easter egg`,
+		`v0.1.10 — valentine's day easter egg 💚`,
 	];
 
 	const hackLines = [
@@ -266,6 +267,12 @@ try: konami`,
 			return `🎱 ${eightBallResponses[Math.floor(Math.random() * eightBallResponses.length)]}`;
 		},
 		changelog: () => changelog.join('\n'),
+		love: () => {
+			if (isValentines()) {
+				return `💚 happy valentine's day.\n\n${valentineFortunes[Math.floor(Math.random() * valentineFortunes.length)]}`;
+			}
+			return 'love? in this terminal? …maybe. 🐸';
+		},
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
 	};
@@ -274,6 +281,12 @@ try: konami`,
 	function isFriday13(): boolean {
 		const now = new Date();
 		return now.getDay() === 5 && now.getDate() === 13;
+	}
+
+	// Valentine's Day detection
+	function isValentines(): boolean {
+		const now = new Date();
+		return now.getMonth() === 1 && now.getDate() === 14;
 	}
 
 	const ASCII_FROG = [
@@ -287,6 +300,17 @@ try: konami`,
 		'',
 	];
 
+	const valentineFortunes = [
+		'love is just two processes sharing memory. 💚',
+		'roses are red, terminals are green, you\'re the prettiest visitor this shell has seen.',
+		'my heart runs on localhost. but for you, i\'d open a port. 🐸',
+		'404: loneliness not found.',
+		'you had me at sudo.',
+		'i love you more than i love uptime. and i really love uptime.',
+		'every git commit is a love letter to future you.',
+		'connection established. ❤️',
+	];
+
 	const spookyFortunes = [
 		'something is watching from the other side of the screen.',
 		'the terminal blinks. you didn\'t type anything.',
@@ -296,7 +320,22 @@ try: konami`,
 		'friday the 13th. even frogs stay quiet. 🐸',
 	];
 
-	const welcomeMessage = isFriday13() ? [
+	const welcomeMessage = isValentines() ? [
+		...ASCII_FROG,
+		`v${version}`,
+		'',
+		'💚 happy valentine\'s day, stranger.',
+		'',
+		valentineFortunes[Math.floor(Math.random() * valentineFortunes.length)],
+		'',
+		'  love           — 💚',
+		'  whoami         — who am i?',
+		'  fortune        — words of wisdom',
+		'  8ball <q>      — ask the oracle',
+		'  theme <name>   — change the vibe',
+		'  help           — all commands',
+		'',
+	] : isFriday13() ? [
 		...ASCII_FROG,
 		`v${version}`,
 		'',
