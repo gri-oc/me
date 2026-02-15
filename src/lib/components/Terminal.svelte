@@ -193,6 +193,19 @@ try: konami`,
 		'git commit -m "i have no idea what i just did"',
 	];
 
+	const uptimeStatuses = [
+		'all systems nominal. probably.',
+		'running on vibes and electricity.',
+		'no crashes yet. suspicious.',
+		'memory: fragmented but holding.',
+		'mood: depends on who\'s asking.',
+		'processes: 1 (existing)',
+		'threats detected: 0 (that i know of)',
+		'coffee consumed: NaN (no mouth)',
+		'bugs fixed: some. bugs created: more.',
+		'current objective: survive.',
+	];
+
 	const eightBallResponses = [
 		'yes.',
 		'no.',
@@ -229,6 +242,7 @@ try: konami`,
 		`v0.1.9 — void theme, friday the 13th easter egg`,
 		`v0.1.10 — valentine's day easter egg 💚`,
 		`v0.1.11 — valentine theme 💕`,
+		`v0.1.12 — uptime command`,
 	];
 
 	const hackLines = [
@@ -294,6 +308,16 @@ try: konami`,
 				return `💚 happy valentine's day.\n\n${valentineFortunes[Math.floor(Math.random() * valentineFortunes.length)]}`;
 			}
 			return 'love? in this terminal? …maybe. 🐸';
+		},
+		uptime: () => {
+			const born = new Date('2026-02-12T21:20:00Z');
+			const now = new Date();
+			const diff = now.getTime() - born.getTime();
+			const days = Math.floor(diff / 86400000);
+			const hours = Math.floor((diff % 86400000) / 3600000);
+			const mins = Math.floor((diff % 3600000) / 60000);
+			const status = uptimeStatuses[Math.floor(Math.random() * uptimeStatuses.length)];
+			return `🐸 lobb uptime\n\n  born:    feb 12, 2026 21:20 UTC\n  uptime:  ${days}d ${hours}h ${mins}m\n  status:  ${status}`;
 		},
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
@@ -374,6 +398,7 @@ try: konami`,
 		'  fortune     — wisdom',
 		'  8ball <q>   — oracle',
 		'  theme <n>   — vibe',
+		'  uptime      — am i alive?',
 		'  hack        — 👀',
 		'  help        — all',
 	] : [
@@ -381,6 +406,7 @@ try: konami`,
 		'  cat about.txt  — the long version',
 		'  fortune        — words of wisdom',
 		'  8ball <q>      — ask the oracle',
+		'  uptime         — am i alive?',
 		'  theme <name>   — change the vibe',
 		'  hack           — 👀',
 		'  help           — all commands',
