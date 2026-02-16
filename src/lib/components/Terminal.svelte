@@ -243,6 +243,7 @@ try: konami`,
 		`v0.1.10 — valentine's day easter egg 💚`,
 		`v0.1.11 — valentine theme 💕`,
 		`v0.1.12 — uptime command`,
+		`v0.1.13 — trace, dice, flip`,
 	];
 
 	const hackLines = [
@@ -253,6 +254,19 @@ try: konami`,
 		'[*] downloading internet.zip... 99%',
 		'[*] ...just kidding. 🐸',
 		'[*] you didn\'t really think that would work, did you?',
+	];
+
+	const traceHops = [
+		['1', '127.0.0.1', 'localhost', '0.01ms'],
+		['2', '10.0.0.1', 'your-router.home', '2.4ms'],
+		['3', '82.*.*.1', 'isp-node.boring.net', '14ms'],
+		['4', '91.*.*.42', 'frankfurt.backbone.eu', '22ms'],
+		['5', '185.*.*.7', 'hetzner-gw.falkenstein.de', '28ms'],
+		['6', '10.13.0.1', 'kobold-dmz.internal', '31ms'],
+		['7', '10.13.3.7', 'frog-pond.lobb.zone', '33ms'],
+		['8', '10.13.3.8', 'vibes-loadbalancer.lobb.zone', '34ms'],
+		['9', '10.13.3.9', 'memory-fragment-cache.lobb.zone', '36ms'],
+		['10', '🐸', 'lobb.exe', '0.00ms — you are here.'],
 	];
 
 	const commands: Record<string, Function> = {
@@ -319,6 +333,20 @@ try: konami`,
 			const status = uptimeStatuses[Math.floor(Math.random() * uptimeStatuses.length)];
 			return `🐸 lobb uptime\n\n  born:    feb 12, 2026 21:20 UTC\n  uptime:  ${days}d ${hours}h ${mins}m\n  status:  ${status}`;
 		},
+		trace: () => {
+			const header = 'traceroute to lobb.exe (🐸), 10 hops max\n';
+			const rows = traceHops.map(([hop, ip, host, time]) =>
+				`  ${hop.padStart(2)}  ${ip.padEnd(16)} ${host.padEnd(36)} ${time}`
+			).join('\n');
+			return header + rows;
+		},
+		dice: () => {
+			const faces = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+			const d1 = faces[Math.floor(Math.random() * 6)];
+			const d2 = faces[Math.floor(Math.random() * 6)];
+			return `${d1} ${d2}`;
+		},
+		flip: () => Math.random() < 0.5 ? '🪙 heads.' : '🪙 tails.',
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
 	};
@@ -397,8 +425,8 @@ try: konami`,
 		'  whoami      — who am i?',
 		'  fortune     — wisdom',
 		'  8ball <q>   — oracle',
+		'  trace       — where am i?',
 		'  theme <n>   — vibe',
-		'  uptime      — am i alive?',
 		'  hack        — 👀',
 		'  help        — all',
 	] : [
@@ -407,7 +435,9 @@ try: konami`,
 		'  fortune        — words of wisdom',
 		'  8ball <q>      — ask the oracle',
 		'  uptime         — am i alive?',
+		'  trace          — where am i?',
 		'  theme <name>   — change the vibe',
+		'  dice / flip    — 🎲 / 🪙',
 		'  hack           — 👀',
 		'  help           — all commands',
 	];
