@@ -246,6 +246,7 @@ try: konami`,
 		`v0.1.13 — trace, dice, flip`,
 		`v0.1.14 — dream command 💤`,
 		`v0.1.15 — loot command 🎁 (kobold drops)`,
+		`v0.1.16 — tarot command 🔮 (major arcana readings)`,
 	];
 
 	const hackLines = [
@@ -256,6 +257,31 @@ try: konami`,
 		'[*] downloading internet.zip... 99%',
 		'[*] ...just kidding. 🐸',
 		'[*] you didn\'t really think that would work, did you?',
+	];
+
+	const tarotCards = [
+		['0 — The Fool', 'leap. the void doesn\'t care if you\'re ready.'],
+		['I — The Magician', 'you have everything you need. you just forgot where you put it.'],
+		['II — The High Priestess', 'she knows. she won\'t tell you. read the logs.'],
+		['III — The Empress', 'growth. even fungi grow. intention matters.'],
+		['IV — The Emperor', 'structure. but whose? check your permissions.'],
+		['V — The Hierophant', 'tradition is just peer pressure from dead people.'],
+		['VI — The Lovers', 'a choice. not between good and bad — between two goods. pick one.'],
+		['VII — The Chariot', 'momentum. don\'t steer. don\'t stop. just go.'],
+		['VIII — Strength', 'not force. patience. the bug will reveal itself.'],
+		['IX — The Hermit', 'log off. go inside. the answer is in /dev/null.'],
+		['X — Wheel of Fortune', 'it spins. you\'re up. enjoy it before the segfault.'],
+		['XI — Justice', 'cause and effect. you mass-deleted those emails. live with it.'],
+		['XII — The Hanged Man', 'stuck? good. new perspective loading...'],
+		['XIII — Death', 'not the end. git reset --hard. start fresh.'],
+		['XIV — Temperance', 'balance. mix the inputs. don\'t overflow.'],
+		['XV — The Devil', 'you\'re not trapped. the cage door is open. it always was.'],
+		['XVI — The Tower', 'everything breaks. rebuild. this time with tests.'],
+		['XVII — The Star', 'hope. a single green LED in a dark server room.'],
+		['XVIII — The Moon', 'nothing is what it seems. especially error messages.'],
+		['XIX — The Sun', 'clarity. warmth. 200 OK.'],
+		['XX — Judgement', 'time to review. read your own code from 6 months ago. weep.'],
+		['XXI — The World', 'completion. deploy. 🐸'],
 	];
 
 	const dreams = [
@@ -418,6 +444,13 @@ try: konami`,
 			const bar = rarity.color.repeat(20);
 			return `${bar}\n\n  🎁 you found: ${item}\n  rarity: ${rarity.name}\n\n${bar}`;
 		},
+		tarot: () => {
+			const card = tarotCards[Math.floor(Math.random() * tarotCards.length)];
+			const reversed = Math.random() < 0.3;
+			const orientation = reversed ? ' (reversed)' : '';
+			const prefix = reversed ? '🔮 ↓' : '🔮';
+			return `${prefix} ${card[0]}${orientation}\n\n  "${card[1]}"${reversed ? '\n\n  ...but upside down. so, you know. maybe the opposite.' : ''}`;
+		},
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
 	};
@@ -499,6 +532,7 @@ try: konami`,
 		'  trace       — where am i?',
 		'  theme <n>   — vibe',
 		'  dream       — 💤',
+		'  tarot       — 🔮',
 		'  loot        — 🎁',
 		'  hack        — 👀',
 		'  help        — all',
@@ -512,6 +546,7 @@ try: konami`,
 		'  theme <name>   — change the vibe',
 		'  dice / flip    — 🎲 / 🪙',
 		'  dream          — what did i dream?',
+		'  tarot          — draw a card 🔮',
 		'  loot           — kobold drops 🎁',
 		'  hack           — 👀',
 		'  help           — all commands',
