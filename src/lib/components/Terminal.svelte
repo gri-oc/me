@@ -257,6 +257,39 @@ try: konami`,
 		}, 1200);
 	}
 
+	// === ERROR GLITCH EFFECT ===
+	let glitchActive = false;
+
+	function triggerGlitch() {
+		if (glitchActive) return;
+		glitchActive = true;
+		setTimeout(() => { glitchActive = false; }, 600);
+	}
+
+	// Watch for error lines appearing in the terminal DOM
+	function setupErrorObserver() {
+		if (typeof MutationObserver === 'undefined') return;
+		const observer = new MutationObserver((mutations) => {
+			for (const m of mutations) {
+				for (const node of m.addedNodes) {
+					if (node instanceof HTMLElement) {
+						// svelte-bash renders errors with color matching the error theme color
+						const text = node.textContent || '';
+						if (text.includes('Command not found:') || text.includes('No such file or directory')) {
+							triggerGlitch();
+							return;
+						}
+					}
+				}
+			}
+		});
+		// Observe the terminal wrapper for new child elements
+		const wrapper = document.querySelector('.terminal-wrapper');
+		if (wrapper) {
+			observer.observe(wrapper, { childList: true, subtree: true });
+		}
+	}
+
 	// === CRT PHOSPHOR TRAIL ===
 	interface PhosphorDot {
 		id: number;
@@ -279,7 +312,7 @@ try: konami`,
 	}
 
 	import { onMount, onDestroy } from 'svelte';
-	onMount(() => { resetIdle(); });
+	onMount(() => { resetIdle(); setupErrorObserver(); });
 	onDestroy(() => { clearTimeout(idleTimer); clearInterval(glitchInterval); });
 
 	function handleKonami(e: KeyboardEvent) {
@@ -369,6 +402,7 @@ try: konami`,
 		`v0.1.17 — idle dream mode 💤 (the terminal dreams when you stop typing)`,
 		`v0.1.18 — double-click to spawn frogs 🐸 (they live in the terminal)`,
 		`v0.1.19 — phosphor trail ✨ (the CRT remembers where you've been)`,
+		`v0.1.20 — error glitch 📺 (the terminal freaks out when confused)`,
 	];
 
 	const hackLines = [
@@ -707,7 +741,7 @@ try: konami`,
 
 <svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={handleActivity} on:touchstart={handleActivity} on:dblclick={spawnFrog} on:mousemove={handleMouseMove} />
 
-<div class="terminal-wrapper" style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt};">
+<div class="terminal-wrapper" class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
 	<div class="crt">
 		{#key currentThemeName}
@@ -906,5 +940,67 @@ try: konami`,
 		0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
 		30% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
 		100% { opacity: 0; transform: translate(-50%, -50%) scale(3); }
+	}
+
+	/* Error glitch effect — RGB split + shake */
+	.glitch-active .crt {
+		animation: glitch-shake 0.15s linear 3;
+	}
+
+	.glitch-active::before {
+		content: '';
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 200;
+		animation: glitch-rgb 0.6s steps(4) forwards;
+		mix-blend-mode: screen;
+	}
+
+	.glitch-active .scanlines {
+		animation: glitch-scanlines 0.6s steps(8) forwards;
+	}
+
+	@keyframes glitch-shake {
+		0% { transform: translate(0, 0); }
+		20% { transform: translate(-3px, 1px); }
+		40% { transform: translate(2px, -2px); }
+		60% { transform: translate(-1px, 2px); }
+		80% { transform: translate(3px, -1px); }
+		100% { transform: translate(0, 0); }
+	}
+
+	@keyframes glitch-rgb {
+		0% {
+			background: linear-gradient(90deg, rgba(255,0,0,0.08) 33%, rgba(0,255,0,0.08) 33% 66%, rgba(0,0,255,0.08) 66%);
+			transform: translateX(-2px);
+		}
+		25% {
+			background: linear-gradient(90deg, rgba(0,0,255,0.06) 33%, rgba(255,0,0,0.06) 33% 66%, rgba(0,255,0,0.06) 66%);
+			transform: translateX(3px);
+		}
+		50% {
+			background: linear-gradient(90deg, rgba(0,255,0,0.1) 33%, rgba(0,0,255,0.1) 33% 66%, rgba(255,0,0,0.1) 66%);
+			transform: translateX(-1px);
+		}
+		75% {
+			background: linear-gradient(90deg, rgba(255,0,0,0.04) 33%, rgba(0,255,0,0.04) 33% 66%, rgba(0,0,255,0.04) 66%);
+			transform: translateX(2px);
+		}
+		100% {
+			background: transparent;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes glitch-scanlines {
+		0% { opacity: 0.6; }
+		25% { opacity: 0.9; background-size: 100% 2px; }
+		50% { opacity: 0.4; background-size: 100% 4px; }
+		75% { opacity: 0.8; }
+		100% { opacity: 1; background-size: 100% 3px; }
 	}
 </style>
