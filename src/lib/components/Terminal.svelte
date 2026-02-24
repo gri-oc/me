@@ -306,6 +306,23 @@ try: konami`,
 		}
 	}
 
+	// === GRID-SNAPPING CURSOR ===
+	let gridCursorX = 0;
+	let gridCursorY = 0;
+	let gridCursorVisible = false;
+	let charWidth = 0;
+	let lineHeight = 0;
+
+	function measureCharMetrics() {
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+		const fontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.5;
+		ctx.font = `500 ${fontSize}px "IBM Plex Mono", monospace`;
+		charWidth = ctx.measureText('M').width;
+		lineHeight = fontSize * 1.4; // typical line-height for monospace
+	}
+
 	// === CRT PHOSPHOR TRAIL ===
 	interface PhosphorDot {
 		id: number;
@@ -317,6 +334,26 @@ try: konami`,
 	let lastDotTime = 0;
 
 	function handleMouseMove(e: MouseEvent) {
+		// Grid cursor
+		if (charWidth > 0 && lineHeight > 0) {
+			const wrapper = document.querySelector('.terminal-wrapper');
+			if (wrapper) {
+				const rect = wrapper.getBoundingClientRect();
+				if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+					const relX = e.clientX - rect.left;
+					const relY = e.clientY - rect.top;
+					const snappedRelX = Math.floor(relX / charWidth) * charWidth;
+					const snappedRelY = Math.floor(relY / lineHeight) * lineHeight;
+					gridCursorX = rect.left + snappedRelX;
+					gridCursorY = rect.top + snappedRelY;
+					gridCursorVisible = true;
+				} else {
+					gridCursorVisible = false;
+				}
+			}
+		}
+
+		// Phosphor trail
 		const now = Date.now();
 		if (now - lastDotTime < 40) return; // throttle
 		lastDotTime = now;
@@ -327,8 +364,12 @@ try: konami`,
 		}, 1200);
 	}
 
+	function handleMouseLeave() {
+		gridCursorVisible = false;
+	}
+
 	import { onMount, onDestroy } from 'svelte';
-	onMount(() => { resetIdle(); setupErrorObserver(); });
+	onMount(() => { resetIdle(); setupErrorObserver(); measureCharMetrics(); });
 	onDestroy(() => { clearTimeout(idleTimer); clearInterval(glitchInterval); });
 
 	function handleKonami(e: KeyboardEvent) {
@@ -756,7 +797,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} />
+<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -786,7 +827,9 @@ try: konami`,
 	{#each phosphorDots as dot (dot.id)}
 		<div class="phosphor-dot" style="left: {dot.x}px; top: {dot.y}px;"></div>
 	{/each}
-
+	{#if gridCursorVisible && charWidth > 0}
+		<div class="grid-cursor" style="left: {gridCursorX}px; top: {gridCursorY}px; width: {charWidth}px; height: {lineHeight}px;"></div>
+	{/if}
 </div>
 
 <style>
@@ -795,6 +838,23 @@ try: konami`,
 		max-width: 800px;
 		margin: 0 auto;
 		position: relative;
+		cursor: none;
+	}
+
+	/* Grid-snapping terminal cursor */
+	.grid-cursor {
+		position: fixed;
+		background: var(--fg);
+		opacity: 0.35;
+		pointer-events: none;
+		z-index: 80;
+		animation: grid-cursor-blink 1s step-end infinite;
+		box-shadow: 0 0 4px var(--fg);
+	}
+
+	@keyframes grid-cursor-blink {
+		0%, 100% { opacity: 0.35; }
+		50% { opacity: 0.12; }
 	}
 
 	.terminal-wrapper :global(.terminal-container),
