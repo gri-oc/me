@@ -340,6 +340,43 @@ try: konami`,
 		}
 	}
 
+	// === RAGE CLICK SCREEN CRACK ===
+	let clickTimes: number[] = [];
+	let cracks: Array<{id: number; x: number; y: number; angle: number; length: number; branches: Array<{angle: number; length: number; offset: number}>}> = [];
+	let crackId = 0;
+	let screenCracked = false;
+
+	function handleRageClick(e: MouseEvent) {
+		const now = Date.now();
+		clickTimes = [...clickTimes.filter(t => now - t < 2000), now];
+		if (clickTimes.length >= 5) {
+			// Rage detected! Crack the screen
+			screenCracked = true;
+			const branches = Array.from({length: 2 + Math.floor(Math.random() * 4)}, () => ({
+				angle: (Math.random() - 0.5) * 120,
+				length: 30 + Math.random() * 80,
+				offset: 0.2 + Math.random() * 0.6,
+			}));
+			cracks = [...cracks, {
+				id: crackId++,
+				x: e.clientX,
+				y: e.clientY,
+				angle: Math.random() * 360,
+				length: 80 + Math.random() * 150,
+				branches,
+			}];
+			clickTimes = [];
+			// shake
+			triggerGlitch();
+		}
+	}
+
+	function repairScreen() {
+		screenCracked = false;
+		cracks = [];
+		return '🔧 screen repaired. please be gentler next time.';
+	}
+
 	// === CRT PHOSPHOR TRAIL ===
 	interface PhosphorDot {
 		id: number;
@@ -454,6 +491,7 @@ try: konami`,
 		`v0.1.19 — phosphor trail ✨ (the CRT remembers where you've been)`,
 		`v0.1.20 — error glitch 📺 (the terminal freaks out when confused)`,
 		`v0.1.21 — channel switch 📡 (old CRT static + squeeze when changing themes)`,
+		`v0.1.22 — rage click crack 💥 (click too fast and the screen breaks. type 'repair' to fix)`,
 	];
 
 	const hackLines = [
@@ -659,6 +697,10 @@ try: konami`,
 			const prefix = reversed ? '🔮 ↓' : '🔮';
 			return `${prefix} ${card[0]}${orientation}\n\n  "${card[1]}"${reversed ? '\n\n  ...but upside down. so, you know. maybe the opposite.' : ''}`;
 		},
+		repair: () => {
+			if (!screenCracked) return 'nothing to repair. the screen is fine. ...for now.';
+			return repairScreen();
+		},
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
 	};
@@ -791,7 +833,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={handleActivity} on:touchstart={handleActivity} on:dblclick={spawnFrog} on:mousemove={handleMouseMove} />
+<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); handleRageClick(e); }} on:touchstart={handleActivity} on:dblclick={spawnFrog} on:mousemove={handleMouseMove} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -821,6 +863,24 @@ try: konami`,
 	{#each phosphorDots as dot (dot.id)}
 		<div class="phosphor-dot" style="left: {dot.x}px; top: {dot.y}px;"></div>
 	{/each}
+	{#if screenCracked}
+		<svg class="crack-overlay" viewBox="0 0 {typeof window !== 'undefined' ? window.innerWidth : 1920} {typeof window !== 'undefined' ? window.innerHeight : 1080}">
+			{#each cracks as crack (crack.id)}
+				{@const rad = crack.angle * Math.PI / 180}
+				{@const ex = crack.x + Math.cos(rad) * crack.length}
+				{@const ey = crack.y + Math.sin(rad) * crack.length}
+				<line x1={crack.x} y1={crack.y} x2={ex} y2={ey} class="crack-line crack-main" />
+				<line x1={crack.x} y1={crack.y} x2={ex} y2={ey} class="crack-line crack-glow" />
+				{#each crack.branches as branch}
+					{@const bx = crack.x + Math.cos(rad) * crack.length * branch.offset}
+					{@const by = crack.y + Math.sin(rad) * crack.length * branch.offset}
+					{@const brad = (crack.angle + branch.angle) * Math.PI / 180}
+					<line x1={bx} y1={by} x2={bx + Math.cos(brad) * branch.length} y2={by + Math.sin(brad) * branch.length} class="crack-line crack-branch" />
+					<line x1={bx} y1={by} x2={bx + Math.cos(brad) * branch.length} y2={by + Math.sin(brad) * branch.length} class="crack-line crack-glow" />
+				{/each}
+			{/each}
+		</svg>
+	{/if}
 	{#each spawnedFrogs as frog (frog.id)}
 		<div
 			class="spawned-frog"
@@ -1029,6 +1089,39 @@ try: konami`,
 		0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
 		30% { opacity: 0.3; }
 		100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+	}
+
+	/* Screen crack overlay */
+	.crack-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 250;
+	}
+
+	.crack-line {
+		stroke-linecap: round;
+	}
+
+	.crack-main {
+		stroke: rgba(255, 255, 255, 0.7);
+		stroke-width: 2;
+		filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
+	}
+
+	.crack-branch {
+		stroke: rgba(255, 255, 255, 0.5);
+		stroke-width: 1.2;
+	}
+
+	.crack-glow {
+		stroke: var(--fg);
+		stroke-width: 4;
+		opacity: 0.15;
+		filter: blur(3px);
 	}
 
 	@keyframes konami-pop {
