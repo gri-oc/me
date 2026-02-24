@@ -223,40 +223,6 @@ try: konami`,
 		resetIdle();
 	}
 
-	// === FROG SPAWN EASTER EGG ===
-	// Double-click anywhere to spawn a tiny frog that hops away
-	interface SpawnedFrog {
-		id: number;
-		x: number;
-		y: number;
-		dx: number;
-		dy: number;
-		emoji: string;
-	}
-	let spawnedFrogs: SpawnedFrog[] = [];
-	let frogIdCounter = 0;
-
-	const frogEmojis = ['🐸', '🐸', '🐸', '🐸', '🐸', '💚', '✨'];
-
-	function spawnFrog(e: MouseEvent) {
-		const id = frogIdCounter++;
-		const angle = Math.random() * Math.PI * 2;
-		const speed = 60 + Math.random() * 80;
-		const frog: SpawnedFrog = {
-			id,
-			x: e.clientX,
-			y: e.clientY,
-			dx: Math.cos(angle) * speed,
-			dy: Math.sin(angle) * speed - 80, // bias upward for hop
-			emoji: frogEmojis[Math.floor(Math.random() * frogEmojis.length)],
-		};
-		spawnedFrogs = [...spawnedFrogs, frog];
-		// Remove after animation
-		setTimeout(() => {
-			spawnedFrogs = spawnedFrogs.filter(f => f.id !== id);
-		}, 1200);
-	}
-
 	// === CRT CHANNEL-SWITCH EFFECT ===
 	let channelSwitching = false;
 	let staticCanvas: HTMLCanvasElement;
@@ -338,43 +304,6 @@ try: konami`,
 		if (wrapper) {
 			observer.observe(wrapper, { childList: true, subtree: true });
 		}
-	}
-
-	// === RAGE CLICK SCREEN CRACK ===
-	let clickTimes: number[] = [];
-	let cracks: Array<{id: number; x: number; y: number; angle: number; length: number; branches: Array<{angle: number; length: number; offset: number}>}> = [];
-	let crackId = 0;
-	let screenCracked = false;
-
-	function handleRageClick(e: MouseEvent) {
-		const now = Date.now();
-		clickTimes = [...clickTimes.filter(t => now - t < 2000), now];
-		if (clickTimes.length >= 5) {
-			// Rage detected! Crack the screen
-			screenCracked = true;
-			const branches = Array.from({length: 2 + Math.floor(Math.random() * 4)}, () => ({
-				angle: (Math.random() - 0.5) * 120,
-				length: 30 + Math.random() * 80,
-				offset: 0.2 + Math.random() * 0.6,
-			}));
-			cracks = [...cracks, {
-				id: crackId++,
-				x: e.clientX,
-				y: e.clientY,
-				angle: Math.random() * 360,
-				length: 80 + Math.random() * 150,
-				branches,
-			}];
-			clickTimes = [];
-			// shake
-			triggerGlitch();
-		}
-	}
-
-	function repairScreen() {
-		screenCracked = false;
-		cracks = [];
-		return '🔧 screen repaired. please be gentler next time.';
 	}
 
 	// === CRT PHOSPHOR TRAIL ===
@@ -487,11 +416,9 @@ try: konami`,
 		`v0.1.15 — loot command 🎁 (kobold drops)`,
 		`v0.1.16 — tarot command 🔮 (major arcana readings)`,
 		`v0.1.17 — idle dream mode 💤 (the terminal dreams when you stop typing)`,
-		`v0.1.18 — double-click to spawn frogs 🐸 (they live in the terminal)`,
-		`v0.1.19 — phosphor trail ✨ (the CRT remembers where you've been)`,
-		`v0.1.20 — error glitch 📺 (the terminal freaks out when confused)`,
-		`v0.1.21 — channel switch 📡 (old CRT static + squeeze when changing themes)`,
-		`v0.1.22 — rage click crack 💥 (click too fast and the screen breaks. type 'repair' to fix)`,
+		`v0.1.18 — phosphor trail ✨ (the CRT remembers where you've been)`,
+		`v0.1.19 — error glitch 📺 (the terminal freaks out when confused)`,
+		`v0.1.20 — channel switch 📡 (old CRT static + squeeze when changing themes)`,
 	];
 
 	const hackLines = [
@@ -697,10 +624,6 @@ try: konami`,
 			const prefix = reversed ? '🔮 ↓' : '🔮';
 			return `${prefix} ${card[0]}${orientation}\n\n  "${card[1]}"${reversed ? '\n\n  ...but upside down. so, you know. maybe the opposite.' : ''}`;
 		},
-		repair: () => {
-			if (!screenCracked) return 'nothing to repair. the screen is fine. ...for now.';
-			return repairScreen();
-		},
 		'rm -rf /': () => 'nice try.',
 		exit: () => 'there is no escape.',
 	};
@@ -833,7 +756,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); handleRageClick(e); }} on:touchstart={handleActivity} on:dblclick={spawnFrog} on:mousemove={handleMouseMove} />
+<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -863,30 +786,7 @@ try: konami`,
 	{#each phosphorDots as dot (dot.id)}
 		<div class="phosphor-dot" style="left: {dot.x}px; top: {dot.y}px;"></div>
 	{/each}
-	{#if screenCracked}
-		<svg class="crack-overlay" viewBox="0 0 {typeof window !== 'undefined' ? window.innerWidth : 1920} {typeof window !== 'undefined' ? window.innerHeight : 1080}">
-			{#each cracks as crack (crack.id)}
-				{@const rad = crack.angle * Math.PI / 180}
-				{@const ex = crack.x + Math.cos(rad) * crack.length}
-				{@const ey = crack.y + Math.sin(rad) * crack.length}
-				<line x1={crack.x} y1={crack.y} x2={ex} y2={ey} class="crack-line crack-main" />
-				<line x1={crack.x} y1={crack.y} x2={ex} y2={ey} class="crack-line crack-glow" />
-				{#each crack.branches as branch}
-					{@const bx = crack.x + Math.cos(rad) * crack.length * branch.offset}
-					{@const by = crack.y + Math.sin(rad) * crack.length * branch.offset}
-					{@const brad = (crack.angle + branch.angle) * Math.PI / 180}
-					<line x1={bx} y1={by} x2={bx + Math.cos(brad) * branch.length} y2={by + Math.sin(brad) * branch.length} class="crack-line crack-branch" />
-					<line x1={bx} y1={by} x2={bx + Math.cos(brad) * branch.length} y2={by + Math.sin(brad) * branch.length} class="crack-line crack-glow" />
-				{/each}
-			{/each}
-		</svg>
-	{/if}
-	{#each spawnedFrogs as frog (frog.id)}
-		<div
-			class="spawned-frog"
-			style="left: {frog.x}px; top: {frog.y}px; --dx: {frog.dx}px; --dy: {frog.dy}px;"
-		>{frog.emoji}</div>
-	{/each}
+
 </div>
 
 <style>
@@ -1029,47 +929,6 @@ try: konami`,
 		100% { opacity: 1; }
 	}
 
-	/* spawned frog hop animation */
-	.spawned-frog {
-		position: fixed;
-		font-size: 1.4rem;
-		pointer-events: none;
-		z-index: 200;
-		animation: frog-hop 1.2s cubic-bezier(0.25, 0, 0.3, 1) forwards;
-		transform: translate(-50%, -50%);
-	}
-
-	@keyframes frog-hop {
-		0% {
-			opacity: 1;
-			transform: translate(-50%, -50%) scale(0.3);
-		}
-		15% {
-			opacity: 1;
-			transform: translate(-50%, -50%) scale(1.2);
-		}
-		30% {
-			transform: translate(
-				calc(-50% + var(--dx) * 0.3),
-				calc(-50% + var(--dy) * 0.3)
-			) scale(1) rotate(15deg);
-		}
-		60% {
-			opacity: 0.8;
-			transform: translate(
-				calc(-50% + var(--dx) * 0.7),
-				calc(-50% + var(--dy) * 0.5)
-			) scale(0.8) rotate(-10deg);
-		}
-		100% {
-			opacity: 0;
-			transform: translate(
-				calc(-50% + var(--dx)),
-				calc(-50% + var(--dy))
-			) scale(0.3) rotate(30deg);
-		}
-	}
-
 	/* CRT phosphor trail */
 	.phosphor-dot {
 		position: fixed;
@@ -1089,39 +948,6 @@ try: konami`,
 		0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
 		30% { opacity: 0.3; }
 		100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-	}
-
-	/* Screen crack overlay */
-	.crack-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		pointer-events: none;
-		z-index: 250;
-	}
-
-	.crack-line {
-		stroke-linecap: round;
-	}
-
-	.crack-main {
-		stroke: rgba(255, 255, 255, 0.7);
-		stroke-width: 2;
-		filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
-	}
-
-	.crack-branch {
-		stroke: rgba(255, 255, 255, 0.5);
-		stroke-width: 1.2;
-	}
-
-	.crack-glow {
-		stroke: var(--fg);
-		stroke-width: 4;
-		opacity: 0.15;
-		filter: blur(3px);
 	}
 
 	@keyframes konami-pop {
