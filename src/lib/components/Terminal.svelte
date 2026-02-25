@@ -323,6 +323,59 @@ try: konami`,
 		lineHeight = fontSize * 1.4; // typical line-height for monospace
 	}
 
+	// === CLICK SPARK EFFECT ===
+	interface Spark {
+		id: number;
+		x: number;
+		y: number;
+		vx: number;
+		vy: number;
+		life: number;
+		size: number;
+	}
+	let sparks: Spark[] = [];
+	let sparkId = 0;
+
+	function spawnSparks(e: MouseEvent) {
+		const count = 6 + Math.floor(Math.random() * 6);
+		const newSparks: Spark[] = [];
+		for (let i = 0; i < count; i++) {
+			const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8;
+			const speed = 40 + Math.random() * 80;
+			newSparks.push({
+				id: sparkId++,
+				x: e.clientX,
+				y: e.clientY,
+				vx: Math.cos(angle) * speed,
+				vy: Math.sin(angle) * speed - 20, // slight upward bias
+				life: 0.4 + Math.random() * 0.4,
+				size: 2 + Math.random() * 3,
+			});
+		}
+		sparks = [...sparks, ...newSparks];
+		// Animate sparks
+		newSparks.forEach(s => {
+			const start = performance.now();
+			const animate = () => {
+				const elapsed = (performance.now() - start) / 1000;
+				if (elapsed >= s.life) {
+					sparks = sparks.filter(sp => sp.id !== s.id);
+					return;
+				}
+				const idx = sparks.findIndex(sp => sp.id === s.id);
+				if (idx === -1) return;
+				sparks[idx] = {
+					...sparks[idx],
+					x: e.clientX + s.vx * elapsed,
+					y: e.clientY + s.vy * elapsed + 120 * elapsed * elapsed, // gravity
+				};
+				sparks = sparks;
+				requestAnimationFrame(animate);
+			};
+			requestAnimationFrame(animate);
+		});
+	}
+
 	// === CRT PHOSPHOR TRAIL ===
 	interface PhosphorDot {
 		id: number;
@@ -460,6 +513,7 @@ try: konami`,
 		`v0.1.18 — phosphor trail ✨ (the CRT remembers where you've been)`,
 		`v0.1.19 — error glitch 📺 (the terminal freaks out when confused)`,
 		`v0.1.20 — channel switch 📡 (old CRT static + squeeze when changing themes)`,
+		`v0.1.21 — click sparks ✨ (the phosphor is fragile — touch it and it sparks)`,
 	];
 
 	const hackLines = [
@@ -797,7 +851,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
+<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -830,6 +884,9 @@ try: konami`,
 	{#if gridCursorVisible && charWidth > 0}
 		<div class="grid-cursor" style="left: {gridCursorX}px; top: {gridCursorY}px; width: {charWidth}px; height: {lineHeight}px;"></div>
 	{/if}
+	{#each sparks as spark (spark.id)}
+		<div class="spark" style="left: {spark.x}px; top: {spark.y}px; width: {spark.size}px; height: {spark.size}px;"></div>
+	{/each}
 </div>
 
 <style>
@@ -1068,6 +1125,25 @@ try: konami`,
 			background: transparent;
 			transform: translateX(0);
 		}
+	}
+
+	/* Click spark particles */
+	.spark {
+		position: fixed;
+		border-radius: 50%;
+		background: var(--fg);
+		pointer-events: none;
+		z-index: 70;
+		transform: translate(-50%, -50%);
+		box-shadow: 0 0 6px var(--fg), 0 0 12px var(--fg);
+		mix-blend-mode: screen;
+		animation: spark-fade 0.8s ease-out forwards;
+	}
+
+	@keyframes spark-fade {
+		0% { opacity: 1; }
+		60% { opacity: 0.7; }
+		100% { opacity: 0; }
 	}
 
 	@keyframes glitch-scanlines {
