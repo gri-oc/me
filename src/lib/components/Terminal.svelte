@@ -336,6 +336,19 @@ try: konami`,
 	let sparks: Spark[] = [];
 	let sparkId = 0;
 
+	// === TYPE BURST EFFECT ===
+	interface TypeBurst {
+		id: number;
+		x: number;
+		y: number;
+		char: string;
+		dx: number;
+		dy: number;
+		rotate: number;
+	}
+	let typeBursts: TypeBurst[] = [];
+	let typeBurstId = 0;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -425,11 +438,42 @@ try: konami`,
 	onMount(() => { resetIdle(); setupErrorObserver(); measureCharMetrics(); });
 	onDestroy(() => { clearTimeout(idleTimer); clearInterval(glitchInterval); });
 
+	function spawnTypeBurst(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key.length !== 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
+
+		const displayChar = e.key === 'Enter' ? '↵' : e.key === 'Backspace' ? '⌫' : e.key;
+		const originX = gridCursorVisible ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const id = typeBurstId++;
+		typeBursts = [
+			...typeBursts.slice(-24),
+			{
+				id,
+				x: originX,
+				y: originY,
+				char: displayChar,
+				dx: (Math.random() - 0.5) * 36,
+				dy: -10 - Math.random() * 24,
+				rotate: (Math.random() - 0.5) * 24,
+			},
+		];
+		setTimeout(() => {
+			typeBursts = typeBursts.filter((b) => b.id !== id);
+		}, 550);
+	}
+
 	function handleKonami(e: KeyboardEvent) {
 		konamiBuffer = [...konamiBuffer, e.key].slice(-10);
 		if (konamiBuffer.join(',') === konamiCode.join(',') && !konamiActivated) {
 			konamiActivated = true;
 		}
+	}
+
+	function handleKeyDown(e: KeyboardEvent) {
+		handleKonami(e);
+		handleActivity();
+		spawnTypeBurst(e);
 	}
 
 	const fortunes = [
@@ -582,7 +626,9 @@ try: konami`,
 		['10', '🐸', 'lobb.exe', '0.00ms — you are here.'],
 	];
 
-	const commands: Record<string, Function> = {
+	type CommandResult = string | void | string[] | Promise<string | void | string[]>;
+	type CommandHandler = (args: string[]) => CommandResult;
+	const commands: Record<string, CommandHandler> = {
 		whoami: () => 'lobb. digital kobold. 🐸',
 		hello: () => 'hey. 👋',
 		ping: () => 'pong 🏓',
@@ -590,11 +636,10 @@ try: konami`,
 		source: () => '→ https://github.com/gri-oc/me\n\nbuilt with svelte + svelte-bash.\nhosted on github pages.\nwritten by a frog.',
 		date: () => new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }),
 		sudo: () => 'you have no power here.',
-		hierarchie: () => 'nah',
+		hierarchie: () => 'lol',
 		hack: () => {
 			return hackLines.join('\n');
 		},
-		hierarchie: () => 'lol',
 		konami: () => {
 			if (konamiActivated) {
 				return '🐸 ACHIEVEMENT UNLOCKED: you found the konami code!\n\n...but there\'s no prize. just vibes.';
@@ -613,7 +658,6 @@ try: konami`,
 			}
 			return `unknown theme: ${name}\navailable: ${Object.keys(themes).join(', ')}`;
 		},
-		hierarchie: () => 'nah',
 		weather: async (args: string[]) => {
 			const city = args.length > 0 ? args.join(' ') : 'Karlsruhe';
 			try {
@@ -851,7 +895,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={(e) => { handleKonami(e); handleActivity(); }} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
+<svelte:window on:keydown={handleKeyDown} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -886,6 +930,14 @@ try: konami`,
 	{/if}
 	{#each sparks as spark (spark.id)}
 		<div class="spark" style="left: {spark.x}px; top: {spark.y}px; width: {spark.size}px; height: {spark.size}px;"></div>
+	{/each}
+	{#each typeBursts as burst (burst.id)}
+		<div
+			class="type-burst"
+			style="left: {burst.x}px; top: {burst.y}px; --dx: {burst.dx}px; --dy: {burst.dy}px; --rot: {burst.rotate}deg;"
+		>
+			{burst.char}
+		</div>
 	{/each}
 </div>
 
@@ -1144,6 +1196,34 @@ try: konami`,
 		0% { opacity: 1; }
 		60% { opacity: 0.7; }
 		100% { opacity: 0; }
+	}
+
+	/* Floating glyphs when typing */
+	.type-burst {
+		position: fixed;
+		pointer-events: none;
+		z-index: 90;
+		color: var(--fg);
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.95rem;
+		text-shadow: 0 0 8px var(--fg), 0 0 16px var(--fg);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		animation: type-burst-float 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+	}
+
+	@keyframes type-burst-float {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.7) rotate(0deg);
+		}
+		15% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.15) rotate(var(--rot));
+		}
 	}
 
 	@keyframes glitch-scanlines {
