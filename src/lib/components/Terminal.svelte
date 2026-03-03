@@ -360,6 +360,10 @@ try: konami`,
 	let typePulseId = 0;
 	let recentTypeTimes: number[] = [];
 
+	// === OVERCLOCK MODE (hidden typing frenzy effect) ===
+	let overclocked = false;
+	let overclockTimeout: ReturnType<typeof setTimeout>;
+
 	// === ENTER SWEEP EFFECT ===
 	interface EnterSweep {
 		id: number;
@@ -507,7 +511,7 @@ try: konami`,
 
 	import { onMount, onDestroy } from 'svelte';
 	onMount(() => { resetIdle(); setupErrorObserver(); measureCharMetrics(); });
-	onDestroy(() => { clearTimeout(idleTimer); clearInterval(glitchInterval); });
+	onDestroy(() => { clearTimeout(idleTimer); clearInterval(glitchInterval); clearTimeout(overclockTimeout); });
 
 	function spawnTypeBurst(e: KeyboardEvent) {
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -547,13 +551,27 @@ try: konami`,
 		}, 520);
 	}
 
+	function triggerOverclock() {
+		overclocked = true;
+		clearTimeout(overclockTimeout);
+		overclockTimeout = setTimeout(() => {
+			overclocked = false;
+		}, 950);
+	}
+
 	function trackRapidTyping(e: KeyboardEvent) {
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		if (e.key.length !== 1 && e.key !== 'Enter' && e.key !== 'Backspace') return;
 		const now = performance.now();
-		recentTypeTimes = [...recentTypeTimes.filter((t) => now - t <= 350), now];
-		if (recentTypeTimes.length >= 3) {
+		recentTypeTimes = [...recentTypeTimes.filter((t) => now - t <= 1200), now];
+
+		const burstKeys = recentTypeTimes.filter((t) => now - t <= 350).length;
+		if (burstKeys >= 3) {
 			spawnTypePulse();
+		}
+
+		if (recentTypeTimes.length >= 8) {
+			triggerOverclock();
 			recentTypeTimes = [];
 		}
 	}
@@ -706,6 +724,7 @@ try: konami`,
 		`v0.1.23 — enter sweep ═ (pressing enter fires a horizontal phosphor beam)`,
 		`v0.1.24 — mouse panic wave 🌀 (shake your mouse fast to destabilize phosphor space)`,
 		`v0.1.25 — frog parade 🐸 (type 'lobb' to unleash tiny hopping frogs)`,
+		`v0.1.26 — overclock mode ⚡ (type like a maniac to short-circuit the CRT for a moment)`,
 	];
 
 	const hackLines = [
@@ -1045,7 +1064,7 @@ try: konami`,
 
 <svelte:window on:keydown={handleKeyDown} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
-<div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
+<div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} class:overclocked={overclocked} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
 	<div class="crt">
 		{#key currentThemeName}
@@ -1069,6 +1088,9 @@ try: konami`,
 	{/if}
 	{#if idleDreaming}
 		<div class="idle-vignette"></div>
+	{/if}
+	{#if overclocked}
+		<div class="overclock-flash"></div>
 	{/if}
 	{#each phosphorDots as dot (dot.id)}
 		<div class="phosphor-dot" style="left: {dot.x}px; top: {dot.y}px;"></div>
@@ -1113,6 +1135,51 @@ try: konami`,
 		margin: 0 auto;
 		position: relative;
 		cursor: none;
+	}
+
+	/* Hidden overclock mode (type like a maniac) */
+	.overclocked .crt {
+		animation: overclock-shiver 0.08s steps(2) infinite;
+		filter: saturate(1.45) contrast(1.15) hue-rotate(-6deg);
+	}
+
+	.overclocked .scanlines {
+		opacity: 0.85;
+		animation: overclock-scan 0.12s steps(2) infinite;
+	}
+
+	.overclock-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 250;
+		background:
+			radial-gradient(circle at 50% 55%, color-mix(in oklab, var(--fg) 24%, transparent 76%) 0%, transparent 45%),
+			linear-gradient(90deg, rgba(255, 0, 80, 0.08), rgba(0, 255, 180, 0.08), rgba(80, 120, 255, 0.08));
+		mix-blend-mode: screen;
+		animation: overclock-flash 0.95s ease-out forwards;
+	}
+
+	@keyframes overclock-shiver {
+		0% { transform: translate(0, 0); }
+		25% { transform: translate(-0.6px, 0.4px); }
+		50% { transform: translate(0.6px, -0.4px); }
+		75% { transform: translate(-0.4px, -0.3px); }
+		100% { transform: translate(0, 0); }
+	}
+
+	@keyframes overclock-scan {
+		0%, 100% { opacity: 0.55; background-size: 100% 3px; }
+		50% { opacity: 0.95; background-size: 100% 2px; }
+	}
+
+	@keyframes overclock-flash {
+		0% { opacity: 0; }
+		12% { opacity: 1; }
+		100% { opacity: 0; }
 	}
 
 	/* Grid-snapping terminal cursor */
