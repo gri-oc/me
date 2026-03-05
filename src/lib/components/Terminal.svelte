@@ -388,6 +388,18 @@ try: konami`,
 	let frogBuffer = '';
 	let frogLastKeyAt = 0;
 
+	// === ELLIPSIS PING (type "..." quickly) ===
+	interface EllipsisPing {
+		id: number;
+		x: number;
+		y: number;
+		size: number;
+	}
+	let ellipsisPings: EllipsisPing[] = [];
+	let ellipsisPingId = 0;
+	let dotBuffer = '';
+	let dotLastKeyAt = 0;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -684,6 +696,39 @@ try: konami`,
 		}
 	}
 
+	function triggerEllipsisPing() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const y = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const id = ellipsisPingId++;
+		ellipsisPings = [
+			...ellipsisPings.slice(-5),
+			{ id, x, y, size: 32 + Math.random() * 20 },
+		];
+		setTimeout(() => {
+			ellipsisPings = ellipsisPings.filter((p) => p.id !== id);
+		}, 620);
+	}
+
+	function trackEllipsisPing(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - dotLastKeyAt > 900) dotBuffer = '';
+		dotLastKeyAt = now;
+
+		if (e.key === '.') {
+			dotBuffer = (dotBuffer + '.').slice(-3);
+			if (dotBuffer === '...') {
+				dotBuffer = '';
+				triggerEllipsisPing();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			dotBuffer = '';
+		}
+	}
+
 	function handleKonami(e: KeyboardEvent) {
 		konamiBuffer = [...konamiBuffer, e.key].slice(-10);
 		if (konamiBuffer.join(',') === konamiCode.join(',') && !konamiActivated) {
@@ -698,6 +743,7 @@ try: konami`,
 		trackRapidTyping(e);
 		spawnEnterSweep(e);
 		trackSecretFrog(e);
+		trackEllipsisPing(e);
 	}
 
 	const fortunes = [
@@ -788,6 +834,7 @@ try: konami`,
 		`v0.1.25 — frog parade 🐸 (type 'lobb' to unleash tiny hopping frogs)`,
 		`v0.1.26 — overclock mode ⚡ (type like a maniac to short-circuit the CRT for a moment)`,
 		`v0.1.27 — cursor rune swarm ✧ (hold your mouse still to summon tiny floating glyphs)`,
+		`v0.1.28 — ellipsis ping ◉ (type '...' quickly to emit a weird CRT sonar pulse)`,
 	];
 
 	const hackLines = [
@@ -1167,6 +1214,9 @@ try: konami`,
 	{#each typePulses as pulse (pulse.id)}
 		<div class="type-pulse" style="left: {pulse.x}px; top: {pulse.y}px; --size: {pulse.size}px;"></div>
 	{/each}
+	{#each ellipsisPings as ping (ping.id)}
+		<div class="ellipsis-ping" style="left: {ping.x}px; top: {ping.y}px; --size: {ping.size}px;"></div>
+	{/each}
 	{#each mouseShockwaves as wave (wave.id)}
 		<div class="mouse-shockwave" style="left: {wave.x}px; top: {wave.y}px; --size: {wave.size}px;"></div>
 	{/each}
@@ -1527,6 +1577,49 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translate(-50%, -50%) scale(3.2);
+		}
+	}
+
+	/* Ellipsis ping (type "..." quickly) */
+	.ellipsis-ping {
+		position: fixed;
+		pointer-events: none;
+		z-index: 87;
+		width: var(--size);
+		height: var(--size);
+		border-radius: 999px;
+		border: 1.5px dashed color-mix(in oklab, var(--fg) 88%, white 12%);
+		box-shadow: 0 0 10px var(--fg), inset 0 0 10px color-mix(in oklab, var(--fg) 45%, transparent 55%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%) scale(0.3);
+		animation: ellipsis-ping-wave 0.62s cubic-bezier(0.16, 0.78, 0.2, 1) forwards;
+	}
+
+	.ellipsis-ping::after {
+		content: '◉';
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 0.78rem;
+		color: color-mix(in oklab, var(--fg) 90%, white 10%);
+		text-shadow: 0 0 6px var(--fg), 0 0 14px color-mix(in oklab, var(--fg) 62%, white 38%);
+		opacity: 0.92;
+	}
+
+	@keyframes ellipsis-ping-wave {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+			filter: blur(0px);
+		}
+		20% {
+			opacity: 0.8;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(3.8) rotate(16deg);
+			filter: blur(0.8px);
 		}
 	}
 
