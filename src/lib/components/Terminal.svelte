@@ -400,6 +400,22 @@ try: konami`,
 	let dotBuffer = '';
 	let dotLastKeyAt = 0;
 
+	// === PANIC STORM (type ?!? or !?! quickly) ===
+	interface PanicDrop {
+		id: number;
+		x: number;
+		char: string;
+		drift: number;
+		duration: number;
+		delay: number;
+		spin: number;
+	}
+	let panicDrops: PanicDrop[] = [];
+	let panicDropId = 0;
+	let panicBuffer = '';
+	let panicLastKeyAt = 0;
+	let panicStorming = false;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -729,6 +745,50 @@ try: konami`,
 		}
 	}
 
+	function triggerPanicStorm() {
+		if (panicStorming) return;
+		panicStorming = true;
+		const chars = ['?', '!', '¿', '‽'];
+		const drops: PanicDrop[] = Array.from({ length: 22 }, () => ({
+			id: panicDropId++,
+			x: 4 + Math.random() * 92,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			drift: (Math.random() - 0.5) * 80,
+			duration: 820 + Math.random() * 520,
+			delay: Math.random() * 220,
+			spin: (Math.random() - 0.5) * 130,
+		}));
+		panicDrops = [...panicDrops.slice(-50), ...drops];
+		drops.forEach((drop) => {
+			setTimeout(() => {
+				panicDrops = panicDrops.filter((d) => d.id !== drop.id);
+			}, drop.duration + drop.delay + 120);
+		});
+		setTimeout(() => {
+			panicStorming = false;
+		}, 900);
+	}
+
+	function trackPanicStorm(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - panicLastKeyAt > 850) panicBuffer = '';
+		panicLastKeyAt = now;
+
+		if (e.key === '?' || e.key === '!') {
+			panicBuffer = (panicBuffer + e.key).slice(-3);
+			if (panicBuffer === '?!?' || panicBuffer === '!?!') {
+				panicBuffer = '';
+				triggerPanicStorm();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			panicBuffer = '';
+		}
+	}
+
 	function handleKonami(e: KeyboardEvent) {
 		konamiBuffer = [...konamiBuffer, e.key].slice(-10);
 		if (konamiBuffer.join(',') === konamiCode.join(',') && !konamiActivated) {
@@ -744,6 +804,7 @@ try: konami`,
 		spawnEnterSweep(e);
 		trackSecretFrog(e);
 		trackEllipsisPing(e);
+		trackPanicStorm(e);
 	}
 
 	const fortunes = [
@@ -835,6 +896,7 @@ try: konami`,
 		`v0.1.26 — overclock mode ⚡ (type like a maniac to short-circuit the CRT for a moment)`,
 		`v0.1.27 — cursor rune swarm ✧ (hold your mouse still to summon tiny floating glyphs)`,
 		`v0.1.28 — ellipsis ping ◉ (type '...' quickly to emit a weird CRT sonar pulse)`,
+		`v0.1.29 — panic storm ‽ (type ?!? or !?! quickly to make punctuation rain from the void)`,
 	];
 
 	const hackLines = [
@@ -1216,6 +1278,14 @@ try: konami`,
 	{/each}
 	{#each ellipsisPings as ping (ping.id)}
 		<div class="ellipsis-ping" style="left: {ping.x}px; top: {ping.y}px; --size: {ping.size}px;"></div>
+	{/each}
+	{#each panicDrops as drop (drop.id)}
+		<div
+			class="panic-drop"
+			style="left: {drop.x}%; --drift: {drop.drift}px; --dur: {drop.duration}ms; --delay: {drop.delay}ms; --spin: {drop.spin}deg;"
+		>
+			{drop.char}
+		</div>
 	{/each}
 	{#each mouseShockwaves as wave (wave.id)}
 		<div class="mouse-shockwave" style="left: {wave.x}px; top: {wave.y}px; --size: {wave.size}px;"></div>
@@ -1620,6 +1690,36 @@ try: konami`,
 			opacity: 0;
 			transform: translate(-50%, -50%) scale(3.8) rotate(16deg);
 			filter: blur(0.8px);
+		}
+	}
+
+	/* Panic punctuation storm (type ?!? or !?!) */
+	.panic-drop {
+		position: fixed;
+		top: -24px;
+		pointer-events: none;
+		z-index: 89;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 1rem;
+		color: color-mix(in oklab, var(--fg) 92%, white 8%);
+		text-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 75%, white 25%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		animation: panic-drop-fall var(--dur) cubic-bezier(0.2, 0.74, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes panic-drop-fall {
+		0% {
+			opacity: 0;
+			transform: translateX(0) translateY(0) rotate(0deg) scale(0.85);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(var(--drift)) translateY(calc(100vh + 60px)) rotate(var(--spin)) scale(1.1);
 		}
 	}
 
