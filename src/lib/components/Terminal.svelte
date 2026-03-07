@@ -416,6 +416,23 @@ try: konami`,
 	let panicLastKeyAt = 0;
 	let panicStorming = false;
 
+	// === CAPS RAGE (YELL in uppercase) ===
+	interface CapsShard {
+		id: number;
+		x: number;
+		y: number;
+		char: string;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+	}
+	let capsShards: CapsShard[] = [];
+	let capsShardId = 0;
+	let capsRage = false;
+	let capsRageTimeout: ReturnType<typeof setTimeout>;
+	let capsRecentTimes: number[] = [];
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -600,6 +617,7 @@ try: konami`,
 		clearTimeout(idleTimer);
 		clearInterval(glitchInterval);
 		clearTimeout(overclockTimeout);
+		clearTimeout(capsRageTimeout);
 		clearTimeout(stillMouseTimer);
 	});
 
@@ -789,6 +807,50 @@ try: konami`,
 		}
 	}
 
+	function triggerCapsRage(originX: number, originY: number) {
+		capsRage = true;
+		clearTimeout(capsRageTimeout);
+		capsRageTimeout = setTimeout(() => {
+			capsRage = false;
+		}, 780);
+
+		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		const shards: CapsShard[] = Array.from({ length: 16 }, () => ({
+			id: capsShardId++,
+			x: originX + (Math.random() - 0.5) * 120,
+			y: originY + (Math.random() - 0.5) * 44,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			dx: (Math.random() - 0.5) * 160,
+			dy: -35 - Math.random() * 85,
+			rot: (Math.random() - 0.5) * 140,
+			duration: 420 + Math.random() * 260,
+		}));
+		capsShards = [...capsShards.slice(-40), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				capsShards = capsShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + 120);
+		});
+	}
+
+	function trackCapsRage(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key.length !== 1) return;
+		if (!/[A-Z]/.test(e.key)) {
+			capsRecentTimes = [];
+			return;
+		}
+		const now = performance.now();
+		capsRecentTimes = [...capsRecentTimes.filter((t) => now - t <= 1200), now];
+		const fastShouts = capsRecentTimes.filter((t) => now - t <= 700).length;
+		if (fastShouts >= 8) {
+			capsRecentTimes = [];
+			const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+			const y = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+			triggerCapsRage(x, y);
+		}
+	}
+
 	function handleKonami(e: KeyboardEvent) {
 		konamiBuffer = [...konamiBuffer, e.key].slice(-10);
 		if (konamiBuffer.join(',') === konamiCode.join(',') && !konamiActivated) {
@@ -805,6 +867,7 @@ try: konami`,
 		trackSecretFrog(e);
 		trackEllipsisPing(e);
 		trackPanicStorm(e);
+		trackCapsRage(e);
 	}
 
 	const fortunes = [
@@ -897,6 +960,7 @@ try: konami`,
 		`v0.1.27 — cursor rune swarm ✧ (hold your mouse still to summon tiny floating glyphs)`,
 		`v0.1.28 — ellipsis ping ◉ (type '...' quickly to emit a weird CRT sonar pulse)`,
 		`v0.1.29 — panic storm ‽ (type ?!? or !?! quickly to make punctuation rain from the void)`,
+		`v0.1.30 — caps rage 🔊 (yell in ALL CAPS to trigger a "TOO LOUD" burst of flying letters)`,
 	];
 
 	const hackLines = [
@@ -1285,6 +1349,17 @@ try: konami`,
 			style="left: {drop.x}%; --drift: {drop.drift}px; --dur: {drop.duration}ms; --delay: {drop.delay}ms; --spin: {drop.spin}deg;"
 		>
 			{drop.char}
+		</div>
+	{/each}
+	{#if capsRage}
+		<div class="caps-rage-banner">TOO LOUD</div>
+	{/if}
+	{#each capsShards as shard (shard.id)}
+		<div
+			class="caps-shard"
+			style="left: {shard.x}px; top: {shard.y}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --rot: {shard.rot}deg; --dur: {shard.duration}ms;"
+		>
+			{shard.char}
 		</div>
 	{/each}
 	{#each mouseShockwaves as wave (wave.id)}
@@ -1720,6 +1795,70 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translateX(var(--drift)) translateY(calc(100vh + 60px)) rotate(var(--spin)) scale(1.1);
+		}
+	}
+
+	/* Caps rage alarm (ALL CAPS typing frenzy) */
+	.caps-rage-banner {
+		position: fixed;
+		left: 50%;
+		top: 18%;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+		z-index: 93;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: clamp(1rem, 2.4vw, 1.5rem);
+		letter-spacing: 0.35em;
+		padding: 0.25rem 0.8rem;
+		color: color-mix(in oklab, var(--err) 88%, white 12%);
+		border: 1px solid color-mix(in oklab, var(--err) 80%, white 20%);
+		text-shadow: 0 0 8px var(--err), 0 0 18px color-mix(in oklab, var(--err) 70%, white 30%);
+		box-shadow: inset 0 0 10px color-mix(in oklab, var(--err) 30%, transparent 70%), 0 0 16px color-mix(in oklab, var(--err) 50%, transparent 50%);
+		background: color-mix(in oklab, var(--err) 18%, transparent 82%);
+		mix-blend-mode: screen;
+		animation: caps-rage-banner 0.78s cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+	}
+
+	.caps-shard {
+		position: fixed;
+		pointer-events: none;
+		z-index: 92;
+		color: color-mix(in oklab, var(--err) 74%, var(--fg) 26%);
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 1rem;
+		text-shadow: 0 0 8px var(--err), 0 0 12px color-mix(in oklab, var(--fg) 55%, transparent 45%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		animation: caps-shard-fly var(--dur) cubic-bezier(0.2, 0.76, 0.2, 1) forwards;
+	}
+
+	@keyframes caps-rage-banner {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.7);
+			filter: blur(1px);
+		}
+		18% {
+			opacity: 1;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(1.06);
+			filter: blur(0.4px);
+		}
+	}
+
+	@keyframes caps-shard-fly {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.7) rotate(0deg);
+		}
+		20% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.1) rotate(var(--rot));
 		}
 	}
 
