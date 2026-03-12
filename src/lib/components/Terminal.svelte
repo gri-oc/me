@@ -529,6 +529,166 @@ try: konami`,
 	let stillMouseTimer: ReturnType<typeof setTimeout>;
 	const runeChars = ['¤', '·', '+', '*', '~', '°', '◦'];
 
+	// === DOUBLE CLICK REALITY RIPPLE ===
+	interface RealityRipple {
+		id: number;
+		x: number;
+		y: number;
+		size: number;
+		tilt: number;
+		duration: number;
+	}
+	let realityRipples: RealityRipple[] = [];
+	let realityRippleId = 0;
+
+	// === SCREEN EDGE LEAK (brush viewport edges, let phosphor leak in) ===
+	interface EdgeLeak {
+		id: number;
+		x: number;
+		y: number;
+		w: number;
+		h: number;
+		dx: number;
+		dy: number;
+		duration: number;
+	}
+	let edgeLeaks: EdgeLeak[] = [];
+	let edgeLeakId = 0;
+	let lastEdgeLeakAt = 0;
+
+	// === PASTE CASCADE (paste text, leak data-rain) ===
+	interface PasteCascadeGlyph {
+		id: number;
+		x: number;
+		char: string;
+		drift: number;
+		duration: number;
+		delay: number;
+		spin: number;
+		size: number;
+	}
+	let pasteCascadeGlyphs: PasteCascadeGlyph[] = [];
+	let pasteCascadeId = 0;
+
+	// === TAB RESYNC ECHO (leave tab, come back, get "where were you" glyph rain) ===
+	interface TabEcho {
+		id: number;
+		x: number;
+		char: string;
+		drift: number;
+		duration: number;
+		delay: number;
+		spin: number;
+	}
+	let tabEchos: TabEcho[] = [];
+	let tabEchoId = 0;
+	let hiddenAt = 0;
+
+	function spawnRealityRipple(e: MouseEvent) {
+		const ripple: RealityRipple = {
+			id: realityRippleId++,
+			x: e.clientX,
+			y: e.clientY,
+			size: 120 + Math.random() * 120,
+			tilt: (Math.random() - 0.5) * 14,
+			duration: 780 + Math.random() * 420,
+		};
+		realityRipples = [...realityRipples.slice(-8), ripple];
+		setTimeout(() => {
+			realityRipples = realityRipples.filter((r) => r.id !== ripple.id);
+		}, ripple.duration + 120);
+	}
+
+	function spawnEdgeLeak(e: MouseEvent, side: 'left' | 'right' | 'top' | 'bottom') {
+		const count = 2 + Math.floor(Math.random() * 3);
+		const leaks: EdgeLeak[] = Array.from({ length: count }, () => {
+			const isVertical = side === 'left' || side === 'right';
+			return {
+				id: edgeLeakId++,
+				x: e.clientX,
+				y: e.clientY,
+				w: isVertical ? 2 + Math.random() * 4 : 16 + Math.random() * 28,
+				h: isVertical ? 14 + Math.random() * 28 : 2 + Math.random() * 4,
+				dx: side === 'left' ? 24 + Math.random() * 42 : side === 'right' ? -(24 + Math.random() * 42) : (Math.random() - 0.5) * 28,
+				dy: side === 'top' ? 20 + Math.random() * 36 : side === 'bottom' ? -(20 + Math.random() * 36) : (Math.random() - 0.5) * 24,
+				duration: 320 + Math.random() * 220,
+			};
+		});
+		edgeLeaks = [...edgeLeaks.slice(-18), ...leaks];
+		leaks.forEach((leak) => {
+			setTimeout(() => {
+				edgeLeaks = edgeLeaks.filter((l) => l.id !== leak.id);
+			}, leak.duration + 120);
+		});
+	}
+
+	function triggerTabResync(hiddenMs: number) {
+		const intensity = Math.min(24, 8 + Math.floor(hiddenMs / 1600));
+		const chars = ['⟂', '⎋', '⌁', '⌗', ':', ';', '⋮', '|'];
+		const echos: TabEcho[] = Array.from({ length: intensity }, () => ({
+			id: tabEchoId++,
+			x: 5 + Math.random() * 90,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			drift: (Math.random() - 0.5) * 90,
+			duration: 700 + Math.random() * 650,
+			delay: Math.random() * 220,
+			spin: (Math.random() - 0.5) * 180,
+		}));
+		tabEchos = [...tabEchos.slice(-40), ...echos];
+		echos.forEach((echo) => {
+			setTimeout(() => {
+				tabEchos = tabEchos.filter((e) => e.id !== echo.id);
+			}, echo.duration + echo.delay + 160);
+		});
+	}
+
+	function triggerPasteCascade(raw: string) {
+		const cleaned = raw.replace(/\s+/g, ' ').trim();
+		if (!cleaned) return;
+
+		const chars = [...cleaned.slice(0, 36)];
+		const count = Math.min(26, Math.max(8, chars.length));
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+
+		const glyphs: PasteCascadeGlyph[] = Array.from({ length: count }, (_, i) => {
+			const char = chars[i % chars.length] || '·';
+			return {
+				id: pasteCascadeId++,
+				x: originX + (Math.random() - 0.5) * 180,
+				char,
+				drift: (Math.random() - 0.5) * 130,
+				duration: 900 + Math.random() * 900,
+				delay: i * 16 + Math.random() * 120,
+				spin: (Math.random() - 0.5) * 220,
+				size: 0.78 + Math.random() * 0.6,
+			};
+		});
+
+		pasteCascadeGlyphs = [...pasteCascadeGlyphs.slice(-70), ...glyphs];
+		glyphs.forEach((glyph) => {
+			setTimeout(() => {
+				pasteCascadeGlyphs = pasteCascadeGlyphs.filter((g) => g.id !== glyph.id);
+			}, glyph.duration + glyph.delay + 140);
+		});
+	}
+
+	function handlePaste(e: ClipboardEvent) {
+		handleActivity();
+		const text = e.clipboardData?.getData('text') ?? '';
+		triggerPasteCascade(text);
+	}
+
+	function handleVisibilityChange() {
+		if (document.hidden) {
+			hiddenAt = performance.now();
+			return;
+		}
+		if (!hiddenAt) return;
+		const hiddenMs = performance.now() - hiddenAt;
+		hiddenAt = 0;
+		if (hiddenMs > 900) triggerTabResync(hiddenMs);
+	}
+
 	function triggerMousePanic(x: number, y: number) {
 		const id = mouseShockwaveId++;
 		mouseShockwaves = [
@@ -620,6 +780,19 @@ try: konami`,
 			}, 1200);
 		}
 
+		const edgeThreshold = 8;
+		if (nowPerf - lastEdgeLeakAt > 220) {
+			let edge: 'left' | 'right' | 'top' | 'bottom' | null = null;
+			if (e.clientX <= edgeThreshold) edge = 'left';
+			else if (e.clientX >= window.innerWidth - edgeThreshold) edge = 'right';
+			else if (e.clientY <= edgeThreshold) edge = 'top';
+			else if (e.clientY >= window.innerHeight - edgeThreshold) edge = 'bottom';
+			if (edge) {
+				spawnEdgeLeak(e, edge);
+				lastEdgeLeakAt = nowPerf;
+			}
+		}
+
 		trackStillMouse(e);
 	}
 
@@ -629,7 +802,12 @@ try: konami`,
 	}
 
 	import { onMount, onDestroy } from 'svelte';
-	onMount(() => { resetIdle(); setupErrorObserver(); measureCharMetrics(); });
+	onMount(() => {
+		resetIdle();
+		setupErrorObserver();
+		measureCharMetrics();
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+	});
 	onDestroy(() => {
 		clearTimeout(idleTimer);
 		clearInterval(glitchInterval);
@@ -637,6 +815,7 @@ try: konami`,
 		clearTimeout(capsRageTimeout);
 		clearTimeout(voidPulseTimeout);
 		clearTimeout(stillMouseTimer);
+		document.removeEventListener('visibilitychange', handleVisibilityChange);
 	});
 
 	function spawnTypeBurst(e: KeyboardEvent) {
@@ -1019,6 +1198,10 @@ try: konami`,
 		`v0.1.29 — panic storm ‽ (type ?!? or !?! quickly to make punctuation rain from the void)`,
 		`v0.1.30 — caps rage 🔊 (yell in ALL CAPS to trigger a "TOO LOUD" burst of flying letters)`,
 		`v0.1.31 — backspace void 🕳️ (spam backspace to tear tiny black shards out of the terminal)`,
+		`v0.1.32 — reality ripple 🫧 (double-click to tear a glowing oval ripple through CRT space)`,
+		`v0.1.33 — edge leak 🧪 (brush against screen borders to make phosphor bleed inward)`,
+		`v0.1.34 — tab resync echo ⟂ (switch tabs and come back to a tiny glyph rain "where were you?")`,
+		`v0.1.35 — paste cascade ☔ (paste text and watch your own glyphs rain through CRT space)`,
 	];
 
 	const hackLines = [
@@ -1356,7 +1539,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={handleKeyDown} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
+<svelte:window on:keydown={handleKeyDown} on:paste={handlePaste} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:dblclick={(e) => { handleActivity(); spawnRealityRipple(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} class:overclocked={overclocked} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -1409,6 +1592,22 @@ try: konami`,
 			{drop.char}
 		</div>
 	{/each}
+	{#each pasteCascadeGlyphs as glyph (glyph.id)}
+		<div
+			class="paste-cascade-glyph"
+			style="left: {glyph.x}px; --drift: {glyph.drift}px; --dur: {glyph.duration}ms; --delay: {glyph.delay}ms; --spin: {glyph.spin}deg; --size: {glyph.size}rem;"
+		>
+			{glyph.char}
+		</div>
+	{/each}
+	{#each tabEchos as echo (echo.id)}
+		<div
+			class="tab-echo"
+			style="left: {echo.x}%; --drift: {echo.drift}px; --dur: {echo.duration}ms; --delay: {echo.delay}ms; --spin: {echo.spin}deg;"
+		>
+			{echo.char}
+		</div>
+	{/each}
 	{#if capsRage}
 		<div class="caps-rage-banner">TOO LOUD</div>
 	{/if}
@@ -1431,6 +1630,12 @@ try: konami`,
 	{/each}
 	{#each mouseShockwaves as wave (wave.id)}
 		<div class="mouse-shockwave" style="left: {wave.x}px; top: {wave.y}px; --size: {wave.size}px;"></div>
+	{/each}
+	{#each realityRipples as ripple (ripple.id)}
+		<div class="reality-ripple" style="left: {ripple.x}px; top: {ripple.y}px; --size: {ripple.size}px; --tilt: {ripple.tilt}deg; --dur: {ripple.duration}ms;"></div>
+	{/each}
+	{#each edgeLeaks as leak (leak.id)}
+		<div class="edge-leak" style="left: {leak.x}px; top: {leak.y}px; width: {leak.w}px; height: {leak.h}px; --dx: {leak.dx}px; --dy: {leak.dy}px; --dur: {leak.duration}ms;"></div>
 	{/each}
 	{#each cursorRunes as rune (rune.id)}
 		<div
@@ -1865,6 +2070,70 @@ try: konami`,
 		}
 	}
 
+	/* Paste cascade (CTRL+V leaks glyph rain into the CRT) */
+	.paste-cascade-glyph {
+		position: fixed;
+		top: -18px;
+		pointer-events: none;
+		z-index: 91;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: var(--size);
+		color: color-mix(in oklab, var(--fg) 90%, white 10%);
+		text-shadow: 0 0 7px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 68%, white 32%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		animation: paste-cascade-fall var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes paste-cascade-fall {
+		0% {
+			opacity: 0;
+			transform: translateX(0) translateY(0) rotate(0deg) scale(0.72);
+			filter: blur(0px);
+		}
+		16% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(var(--drift)) translateY(calc(100vh + 44px)) rotate(var(--spin)) scale(1.08);
+			filter: blur(0.7px);
+		}
+	}
+
+	/* Tab resync echo (switch tabs, come back, terminal complains) */
+	.tab-echo {
+		position: fixed;
+		top: -18px;
+		pointer-events: none;
+		z-index: 90;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.95rem;
+		color: color-mix(in oklab, var(--fg) 90%, white 10%);
+		text-shadow: 0 0 6px var(--fg), 0 0 14px color-mix(in oklab, var(--fg) 68%, white 32%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		animation: tab-echo-fall var(--dur) cubic-bezier(0.2, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes tab-echo-fall {
+		0% {
+			opacity: 0;
+			transform: translateX(0) translateY(0) rotate(0deg) scale(0.75);
+			filter: blur(0px);
+		}
+		16% {
+			opacity: 0.9;
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(var(--drift)) translateY(calc(100vh + 48px)) rotate(var(--spin)) scale(1.05);
+			filter: blur(0.8px);
+		}
+	}
+
 	/* Caps rage alarm (ALL CAPS typing frenzy) */
 	.caps-rage-banner {
 		position: fixed;
@@ -2006,6 +2275,69 @@ try: konami`,
 			opacity: 0;
 			transform: translate(-50%, -50%) scale(4.5);
 			filter: blur(1px);
+		}
+	}
+
+	/* Double click tears a tiny ring in reality */
+	.reality-ripple {
+		position: fixed;
+		pointer-events: none;
+		z-index: 89;
+		width: var(--size);
+		height: calc(var(--size) * 0.66);
+		border-radius: 50%;
+		border: 1px solid color-mix(in oklab, var(--fg) 78%, white 22%);
+		background:
+			radial-gradient(circle at 50% 50%, transparent 44%, color-mix(in oklab, var(--fg) 20%, transparent 80%) 56%, transparent 74%),
+			conic-gradient(from 0deg, transparent 0deg, color-mix(in oklab, var(--fg) 70%, white 30%) 28deg, transparent 70deg, color-mix(in oklab, var(--fg) 55%, white 45%) 120deg, transparent 180deg, color-mix(in oklab, var(--fg) 65%, white 35%) 240deg, transparent 300deg, color-mix(in oklab, var(--fg) 60%, white 40%) 340deg, transparent 360deg);
+		mix-blend-mode: screen;
+		box-shadow: 0 0 8px var(--fg), inset 0 0 10px color-mix(in oklab, var(--fg) 45%, transparent 55%);
+		transform: translate(-50%, -50%) rotate(var(--tilt)) scale(0.2);
+		animation: reality-ripple-pop var(--dur) cubic-bezier(0.17, 0.82, 0.2, 1) forwards;
+	}
+
+	@keyframes reality-ripple-pop {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) rotate(var(--tilt)) scale(0.2);
+			filter: blur(0px);
+		}
+		16% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(-50%, -50%) rotate(calc(var(--tilt) + 10deg)) scale(2.4);
+			filter: blur(1.2px);
+		}
+	}
+
+	/* Screen edge leak (rub viewport borders for weird phosphor bleed) */
+	.edge-leak {
+		position: fixed;
+		pointer-events: none;
+		z-index: 90;
+		border-radius: 2px;
+		background: linear-gradient(90deg, color-mix(in oklab, var(--fg) 90%, white 10%), color-mix(in oklab, var(--fg) 35%, transparent 65%));
+		box-shadow: 0 0 8px var(--fg), 0 0 14px color-mix(in oklab, var(--fg) 70%, white 30%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		animation: edge-leak-drift var(--dur) cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+	}
+
+	@keyframes edge-leak-drift {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.7);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.15);
+			filter: blur(0.9px);
 		}
 	}
 
