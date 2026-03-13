@@ -584,6 +584,21 @@ try: konami`,
 	let tabEchoId = 0;
 	let hiddenAt = 0;
 
+	// === WHEEL SHEAR GLYPHS (mouse wheel bends the CRT text-space sideways) ===
+	interface WheelRune {
+		id: number;
+		x: number;
+		y: number;
+		char: string;
+		dx: number;
+		duration: number;
+		delay: number;
+		spin: number;
+	}
+	let wheelRunes: WheelRune[] = [];
+	let wheelRuneId = 0;
+	let lastWheelAt = 0;
+
 	function spawnRealityRipple(e: MouseEvent) {
 		const ripple: RealityRipple = {
 			id: realityRippleId++,
@@ -640,6 +655,41 @@ try: konami`,
 				tabEchos = tabEchos.filter((e) => e.id !== echo.id);
 			}, echo.duration + echo.delay + 160);
 		});
+	}
+
+
+	function triggerWheelShear(deltaY: number) {
+		const now = performance.now();
+		if (now - lastWheelAt < 60) return;
+		lastWheelAt = now;
+
+		const dir = deltaY >= 0 ? 1 : -1;
+		const intensity = Math.min(14, 6 + Math.floor(Math.abs(deltaY) / 42));
+		const chars = ['/', '\\', '|', '_', '-', '¦', '⟍', '⟋'];
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.55 : window.innerHeight * 0.55;
+
+		const runes: WheelRune[] = Array.from({ length: intensity }, (_, i) => ({
+			id: wheelRuneId++,
+			x: 6 + Math.random() * 88,
+			y: originY + (Math.random() - 0.5) * 160,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			dx: dir * (36 + Math.random() * 130),
+			duration: 360 + Math.random() * 340,
+			delay: i * 10 + Math.random() * 90,
+			spin: dir * (20 + Math.random() * 80),
+		}));
+
+		wheelRunes = [...wheelRunes.slice(-70), ...runes];
+		runes.forEach((rune) => {
+			setTimeout(() => {
+				wheelRunes = wheelRunes.filter((r) => r.id !== rune.id);
+			}, rune.duration + rune.delay + 120);
+		});
+	}
+
+	function handleWheel(e: WheelEvent) {
+		handleActivity();
+		triggerWheelShear(e.deltaY);
 	}
 
 	function triggerPasteCascade(raw: string) {
@@ -1202,6 +1252,7 @@ try: konami`,
 		`v0.1.33 — edge leak 🧪 (brush against screen borders to make phosphor bleed inward)`,
 		`v0.1.34 — tab resync echo ⟂ (switch tabs and come back to a tiny glyph rain "where were you?")`,
 		`v0.1.35 — paste cascade ☔ (paste text and watch your own glyphs rain through CRT space)`,
+		`v0.1.36 — wheel shear 🛞 (scroll to bend text-space sideways with drifting glyph streaks)`,
 	];
 
 	const hackLines = [
@@ -1539,7 +1590,7 @@ try: konami`,
 	];
 </script>
 
-<svelte:window on:keydown={handleKeyDown} on:paste={handlePaste} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:dblclick={(e) => { handleActivity(); spawnRealityRipple(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
+<svelte:window on:keydown={handleKeyDown} on:paste={handlePaste} on:wheel={handleWheel} on:click={(e) => { handleActivity(); spawnSparks(e); }} on:dblclick={(e) => { handleActivity(); spawnRealityRipple(e); }} on:touchstart={handleActivity} on:mousemove={handleMouseMove} on:mouseleave={handleMouseLeave} />
 
 <div class="terminal-wrapper" class:channel-switch={channelSwitching} class:glitch-active={glitchActive} class:overclocked={overclocked} style="--bg: {activeTheme.background}; --fg: {activeTheme.prompt}; --err: {activeTheme.error};">
 	<div class="scanlines"></div>
@@ -1598,6 +1649,14 @@ try: konami`,
 			style="left: {glyph.x}px; --drift: {glyph.drift}px; --dur: {glyph.duration}ms; --delay: {glyph.delay}ms; --spin: {glyph.spin}deg; --size: {glyph.size}rem;"
 		>
 			{glyph.char}
+		</div>
+	{/each}
+	{#each wheelRunes as rune (rune.id)}
+		<div
+			class="wheel-rune"
+			style="left: {rune.x}%; top: {rune.y}px; --dx: {rune.dx}px; --dur: {rune.duration}ms; --delay: {rune.delay}ms; --spin: {rune.spin}deg;"
+		>
+			{rune.char}
 		</div>
 	{/each}
 	{#each tabEchos as echo (echo.id)}
@@ -2099,6 +2158,38 @@ try: konami`,
 			opacity: 0;
 			transform: translateX(var(--drift)) translateY(calc(100vh + 44px)) rotate(var(--spin)) scale(1.08);
 			filter: blur(0.7px);
+		}
+	}
+
+
+	/* Wheel shear runes (scroll to bend CRT sideways) */
+	.wheel-rune {
+		position: fixed;
+		pointer-events: none;
+		z-index: 90;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.95rem;
+		color: color-mix(in oklab, var(--fg) 88%, white 12%);
+		text-shadow: 0 0 6px var(--fg), 0 0 14px color-mix(in oklab, var(--fg) 66%, white 34%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		animation: wheel-rune-shear var(--dur) cubic-bezier(0.19, 0.77, 0.22, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes wheel-rune-shear {
+		0% {
+			opacity: 0;
+			transform: translateX(0) translateY(0) rotate(0deg) scale(0.78);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.92;
+		}
+		100% {
+			opacity: 0;
+			transform: translateX(var(--dx)) translateY(0) rotate(var(--spin)) scale(1.05);
+			filter: blur(0.9px);
 		}
 	}
 
