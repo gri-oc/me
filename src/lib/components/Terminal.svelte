@@ -614,6 +614,22 @@ try: konami`,
 	let copyGhosts: CopyGhost[] = [];
 	let copyGhostId = 0;
 
+	// === RESIZE FRACTURE (window resize tears the CRT for a second) ===
+	interface ResizeFractureShard {
+		id: number;
+		y: number;
+		h: number;
+		dx: number;
+		duration: number;
+		delay: number;
+	}
+	let resizeFractureShards: ResizeFractureShard[] = [];
+	let resizeFractureShardId = 0;
+	let resizeBadge = '';
+	let resizeBadgeVisible = false;
+	let lastResizeFractureAt = 0;
+	let resizeBadgeTimeout: ReturnType<typeof setTimeout>;
+
 	// === CHARGE COIL (hold mouse, release to burst tiny runes) ===
 	interface ChargeRune {
 		id: number;
@@ -859,6 +875,43 @@ try: konami`,
 		triggerCopyGhosts(selection);
 	}
 
+	function triggerResizeFracture() {
+		const now = performance.now();
+		if (now - lastResizeFractureAt < 120) return;
+		lastResizeFractureAt = now;
+
+		const width = window.innerWidth;
+		const height = window.innerHeight;
+		resizeBadge = `${width}×${height}`;
+		resizeBadgeVisible = true;
+		clearTimeout(resizeBadgeTimeout);
+		resizeBadgeTimeout = setTimeout(() => {
+			resizeBadgeVisible = false;
+		}, 920);
+
+		const shardCount = 6 + Math.floor(Math.random() * 5);
+		const shards: ResizeFractureShard[] = Array.from({ length: shardCount }, () => ({
+			id: resizeFractureShardId++,
+			y: 8 + Math.random() * 84,
+			h: 1 + Math.random() * 5,
+			dx: (Math.random() - 0.5) * 180,
+			duration: 300 + Math.random() * 360,
+			delay: Math.random() * 120,
+		}));
+		resizeFractureShards = [...resizeFractureShards.slice(-24), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				resizeFractureShards = resizeFractureShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + shard.delay + 120);
+		});
+	}
+
+	function handleResize() {
+		handleActivity();
+		measureCharMetrics();
+		triggerResizeFracture();
+	}
+
 	function handleVisibilityChange() {
 		if (document.hidden) {
 			hiddenAt = performance.now();
@@ -1055,6 +1108,7 @@ try: konami`,
 		measureCharMetrics();
 		if (inMorningRitualWindow()) triggerMorningRitual();
 		document.addEventListener('visibilitychange', handleVisibilityChange);
+		window.addEventListener('resize', handleResize);
 	});
 	onDestroy(() => {
 		clearTimeout(idleTimer);
@@ -1064,7 +1118,9 @@ try: konami`,
 		clearTimeout(voidPulseTimeout);
 		clearTimeout(stillMouseTimer);
 		clearTimeout(chargeTimer);
+		clearTimeout(resizeBadgeTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
+		window.removeEventListener('resize', handleResize);
 	});
 
 	function spawnTypeBurst(e: KeyboardEvent) {
@@ -1455,6 +1511,7 @@ try: konami`,
 		`v0.1.37 — copy ghosts 📋 (copy selected text and watch fragments of it escape upward)`,
 		`v0.1.38 — morning boot ritual 🌅 (between 08:00-08:25 Berlin, the CRT wakes with warm glow + floating dust motes)`,
 		`v0.1.39 — charge coil ⚛️ (hold mouse, then release to burst tiny runes and a phosphor ring)`,
+		`v0.1.40 — resize fracture 📐 (resizing the window tears thin CRT bands + a SYNC resolution blink)`,
 	];
 
 	const hackLines = [
@@ -1941,6 +1998,15 @@ try: konami`,
 		>
 			{ghost.text}
 		</div>
+	{/each}
+	{#if resizeBadgeVisible}
+		<div class="resize-badge">SYNC {resizeBadge}</div>
+	{/if}
+	{#each resizeFractureShards as shard (shard.id)}
+		<div
+			class="resize-fracture-shard"
+			style="top: {shard.y}%; height: {shard.h}px; --dx: {shard.dx}px; --dur: {shard.duration}ms; --delay: {shard.delay}ms;"
+		></div>
 	{/each}
 	{#if charging}
 		<div class="charge-core" class:ready={chargeReady} style="left: {chargeX}px; top: {chargeY}px;"></div>
@@ -2964,4 +3030,52 @@ try: konami`,
 		75% { opacity: 0.8; }
 		100% { opacity: 1; background-size: 100% 3px; }
 	}
+
+	.resize-badge {
+		position: fixed;
+		top: 16px;
+		right: 18px;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		color: color-mix(in oklab, var(--fg) 86%, white 14%);
+		background: color-mix(in oklab, var(--bg) 74%, transparent 26%);
+		border: 1px solid color-mix(in oklab, var(--fg) 40%, transparent 60%);
+		padding: 0.2rem 0.48rem;
+		pointer-events: none;
+		z-index: 170;
+		text-shadow: 0 0 8px color-mix(in oklab, var(--fg) 65%, transparent 35%);
+		animation: resize-badge-pop 0.9s ease-out forwards;
+	}
+
+	.resize-fracture-shard {
+		position: fixed;
+		left: -4%;
+		width: 108%;
+		background: linear-gradient(90deg,
+			transparent 0%,
+			color-mix(in oklab, var(--fg) 32%, transparent 68%) 15%,
+			color-mix(in oklab, var(--fg) 74%, white 26%) 52%,
+			color-mix(in oklab, var(--fg) 30%, transparent 70%) 86%,
+			transparent 100%);
+		opacity: 0;
+		pointer-events: none;
+		filter: blur(0.2px);
+		z-index: 165;
+		animation: resize-fracture var(--dur) ease-out var(--delay) forwards;
+	}
+
+	@keyframes resize-fracture {
+		0% { transform: translateX(0) scaleX(1); opacity: 0; }
+		14% { transform: translateX(calc(var(--dx) * -0.26)) scaleX(1.01); opacity: 0.8; }
+		48% { transform: translateX(var(--dx)) scaleX(0.99); opacity: 0.46; }
+		100% { transform: translateX(calc(var(--dx) * 0.22)) scaleX(1); opacity: 0; }
+	}
+
+	@keyframes resize-badge-pop {
+		0% { opacity: 0; transform: translateY(-8px) scale(0.96); }
+		14% { opacity: 1; transform: translateY(0) scale(1); }
+		100% { opacity: 0; transform: translateY(2px) scale(0.98); }
+	}
+
 </style>
