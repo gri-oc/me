@@ -416,6 +416,38 @@ try: konami`,
 	let panicLastKeyAt = 0;
 	let panicStorming = false;
 
+	// === SLASH RAIN (type /// quickly to slice the CRT) ===
+	interface SlashShard {
+		id: number;
+		x: number;
+		y: number;
+		len: number;
+		dx: number;
+		dy: number;
+		duration: number;
+		delay: number;
+	}
+	let slashShards: SlashShard[] = [];
+	let slashShardId = 0;
+	let slashBuffer = '';
+	let slashLastKeyAt = 0;
+	let slashFlash = false;
+	let slashFlashTimeout: ReturnType<typeof setTimeout>;
+
+	// === TAB INDENT GLITCH (press TAB to spawn stair-step phosphor bars) ===
+	interface TabIndentShard {
+		id: number;
+		x: number;
+		y: number;
+		width: number;
+		dx: number;
+		dy: number;
+		duration: number;
+		delay: number;
+	}
+	let tabIndentShards: TabIndentShard[] = [];
+	let tabIndentShardId = 0;
+
 	// === CAPS RAGE (YELL in uppercase) ===
 	interface CapsShard {
 		id: number;
@@ -467,6 +499,26 @@ try: konami`,
 	let spaceWarpFlash = false;
 	let spaceWarpFlashTimeout: ReturnType<typeof setTimeout>;
 
+	// === BRACKET PORTAL (type [[ or ]] quickly to bend syntax-space) ===
+	interface BracketPortal {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		spin: number;
+		duration: number;
+		delay: number;
+		scale: number;
+		glyph: string;
+	}
+	let bracketPortals: BracketPortal[] = [];
+	let bracketPortalId = 0;
+	let bracketBuffer = '';
+	let bracketLastKeyAt = 0;
+	let bracketWarp = false;
+	let bracketWarpTimeout: ReturnType<typeof setTimeout>;
+
 	// === 404 PHANTOM (type "404" quickly to summon not-found ghosts) ===
 	interface NotFoundBurst {
 		id: number;
@@ -484,6 +536,42 @@ try: konami`,
 	let notFoundBurstId = 0;
 	let notFoundBuffer = '';
 	let notFoundLastKeyAt = 0;
+
+	// === SEMICOLON COMETS (type ;;; quickly to launch punctuation trails) ===
+	interface SemicolonComet {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		size: number;
+		char: string;
+	}
+	let semicolonComets: SemicolonComet[] = [];
+	let semicolonCometId = 0;
+	let semicolonBuffer = '';
+	let semicolonLastKeyAt = 0;
+
+	// === BINARY FIREFLIES (type 0101 quickly to spawn tiny orbiting bits) ===
+	interface BinaryFirefly {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		scale: number;
+		bit: '0' | '1';
+	}
+	let binaryFireflies: BinaryFirefly[] = [];
+	let binaryFireflyId = 0;
+	let binaryBuffer = '';
+	let binaryLastKeyAt = 0;
 
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
@@ -1155,6 +1243,8 @@ try: konami`,
 		clearTimeout(chargeTimer);
 		clearTimeout(resizeBadgeTimeout);
 		clearTimeout(spaceWarpFlashTimeout);
+		clearTimeout(bracketWarpTimeout);
+		clearTimeout(slashFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1345,6 +1435,53 @@ try: konami`,
 		}
 	}
 
+	function triggerBracketPortal() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const glyphs = ['[', ']', '⟦', '⟧', '⌈', '⌉'];
+		const bursts: BracketPortal[] = Array.from({ length: 10 }, (_, i) => ({
+			id: bracketPortalId++,
+			x: originX + (Math.random() - 0.5) * 110,
+			y: originY + (Math.random() - 0.5) * 38,
+			dx: (Math.random() - 0.5) * 200,
+			dy: -26 - Math.random() * 90,
+			spin: (Math.random() - 0.5) * 160,
+			duration: 460 + Math.random() * 320,
+			delay: i * 16 + Math.random() * 60,
+			scale: 0.72 + Math.random() * 0.5,
+			glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+		}));
+
+		bracketPortals = [...bracketPortals.slice(-40), ...bursts];
+		bursts.forEach((burst) => {
+			setTimeout(() => {
+				bracketPortals = bracketPortals.filter((b) => b.id !== burst.id);
+			}, burst.duration + burst.delay + 120);
+		});
+
+		bracketWarp = true;
+		clearTimeout(bracketWarpTimeout);
+		bracketWarpTimeout = setTimeout(() => {
+			bracketWarp = false;
+		}, 280);
+	}
+
+	function trackBracketPortal(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key !== '[' && e.key !== ']') {
+			if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') bracketBuffer = '';
+			return;
+		}
+		const now = performance.now();
+		if (now - bracketLastKeyAt > 800) bracketBuffer = '';
+		bracketLastKeyAt = now;
+		bracketBuffer = (bracketBuffer + e.key).slice(-2);
+		if (bracketBuffer === '[[' || bracketBuffer === ']]') {
+			bracketBuffer = '';
+			triggerBracketPortal();
+		}
+	}
+
 	function triggerNotFoundPhantom() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -1380,6 +1517,148 @@ try: konami`,
 		if (notFoundBuffer === '404') {
 			notFoundBuffer = '';
 			triggerNotFoundPhantom();
+		}
+	}
+
+	function triggerSemicolonComets() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const chars = [';', ':', '·'];
+		const count = 13 + Math.floor(Math.random() * 8);
+
+		const comets: SemicolonComet[] = Array.from({ length: count }, (_, i) => ({
+			id: semicolonCometId++,
+			x: originX + (Math.random() - 0.5) * 64,
+			y: originY + (Math.random() - 0.5) * 28,
+			dx: (Math.random() - 0.5) * 240,
+			dy: -28 - Math.random() * 140,
+			rot: (Math.random() - 0.5) * 120,
+			duration: 440 + Math.random() * 420,
+			delay: i * 10 + Math.random() * 90,
+			size: 0.76 + Math.random() * 0.62,
+			char: chars[Math.floor(Math.random() * chars.length)],
+		}));
+
+		semicolonComets = [...semicolonComets.slice(-60), ...comets];
+		comets.forEach((comet) => {
+			setTimeout(() => {
+				semicolonComets = semicolonComets.filter((c) => c.id !== comet.id);
+			}, comet.duration + comet.delay + 140);
+		});
+	}
+
+	function trackSemicolonComets(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - semicolonLastKeyAt > 900) semicolonBuffer = '';
+		semicolonLastKeyAt = now;
+
+		if (e.key === ';') {
+			semicolonBuffer = (semicolonBuffer + ';').slice(-3);
+			if (semicolonBuffer === ';;;') {
+				semicolonBuffer = '';
+				triggerSemicolonComets();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			semicolonBuffer = '';
+		}
+	}
+
+	function triggerBinaryFireflies() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const count = 14 + Math.floor(Math.random() * 10);
+
+		const flies: BinaryFirefly[] = Array.from({ length: count }, (_, i) => ({
+			id: binaryFireflyId++,
+			x: originX + (Math.random() - 0.5) * 74,
+			y: originY + (Math.random() - 0.5) * 34,
+			dx: (Math.random() - 0.5) * 220,
+			dy: -34 - Math.random() * 120,
+			rot: (Math.random() - 0.5) * 160,
+			duration: 560 + Math.random() * 480,
+			delay: i * 11 + Math.random() * 100,
+			scale: 0.72 + Math.random() * 0.56,
+			bit: Math.random() > 0.5 ? '1' : '0',
+		}));
+
+		binaryFireflies = [...binaryFireflies.slice(-80), ...flies];
+		flies.forEach((fly) => {
+			setTimeout(() => {
+				binaryFireflies = binaryFireflies.filter((f) => f.id !== fly.id);
+			}, fly.duration + fly.delay + 160);
+		});
+	}
+
+	function trackBinaryFireflies(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - binaryLastKeyAt > 1000) binaryBuffer = '';
+		binaryLastKeyAt = now;
+
+		if (e.key === '0' || e.key === '1') {
+			binaryBuffer = (binaryBuffer + e.key).slice(-4);
+			if (binaryBuffer === '0101') {
+				binaryBuffer = '';
+				triggerBinaryFireflies();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			binaryBuffer = '';
+		}
+	}
+
+	function triggerSlashRain() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const count = 20 + Math.floor(Math.random() * 8);
+		const shards: SlashShard[] = Array.from({ length: count }, (_, i) => ({
+			id: slashShardId++,
+			x: originX + (Math.random() - 0.5) * 220,
+			y: originY + (Math.random() - 0.5) * 80,
+			len: 16 + Math.random() * 54,
+			dx: 42 + Math.random() * 160,
+			dy: -20 - Math.random() * 120,
+			duration: 460 + Math.random() * 380,
+			delay: i * 7 + Math.random() * 80,
+		}));
+
+		slashShards = [...slashShards.slice(-90), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				slashShards = slashShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + shard.delay + 140);
+		});
+
+		slashFlash = true;
+		clearTimeout(slashFlashTimeout);
+		slashFlashTimeout = setTimeout(() => {
+			slashFlash = false;
+		}, 240);
+	}
+
+	function trackSlashRain(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - slashLastKeyAt > 900) slashBuffer = '';
+		slashLastKeyAt = now;
+
+		if (e.key === '/') {
+			slashBuffer = (slashBuffer + '/').slice(-3);
+			if (slashBuffer === '///') {
+				slashBuffer = '';
+				triggerSlashRain();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			slashBuffer = '';
 		}
 	}
 
@@ -1514,6 +1793,35 @@ try: konami`,
 		if (heldMs >= 380) triggerSpaceWarpBurst();
 	}
 
+	function triggerTabIndentGlitch() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const count = 8 + Math.floor(Math.random() * 5);
+		const shards: TabIndentShard[] = Array.from({ length: count }, (_, i) => ({
+			id: tabIndentShardId++,
+			x: originX - 28 + i * 7 + (Math.random() - 0.5) * 10,
+			y: originY + (Math.random() - 0.5) * 24,
+			width: 12 + Math.random() * 26,
+			dx: 30 + Math.random() * 90,
+			dy: -22 - Math.random() * 54,
+			duration: 360 + Math.random() * 300,
+			delay: i * 9 + Math.random() * 70,
+		}));
+
+		tabIndentShards = [...tabIndentShards.slice(-80), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				tabIndentShards = tabIndentShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + shard.delay + 120);
+		});
+	}
+
+	function trackTabIndentGlitch(e: KeyboardEvent) {
+		if (e.key !== 'Tab') return;
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		triggerTabIndentGlitch();
+	}
+
 	function handleKonami(e: KeyboardEvent) {
 		konamiBuffer = [...konamiBuffer, e.key].slice(-10);
 		if (konamiBuffer.join(',') === konamiCode.join(',') && !konamiActivated) {
@@ -1532,8 +1840,13 @@ try: konami`,
 		trackEllipsisPing(e);
 		trackPanicStorm(e);
 		trackNotFoundCode(e);
+		trackSemicolonComets(e);
+		trackBinaryFireflies(e);
+		trackBracketPortal(e);
+		trackSlashRain(e);
 		trackCapsRage(e);
 		trackBackspaceVoid(e);
+		trackTabIndentGlitch(e);
 	}
 
 	const fortunes = [
@@ -1639,6 +1952,11 @@ try: konami`,
 		`v0.1.40 — resize fracture 📐 (resizing the window tears thin CRT bands + a SYNC resolution blink)`,
 		`v0.1.50 — space warp ␠ (hold SPACE and release to smear horizontal phosphor star-streaks)`,
 		`v0.1.51 — 404 phantom 🚫 (type "404" quickly to spawn drifting not-found glyph ghosts near the cursor)`,
+		`v0.1.52 — bracket portal ⟦⟧ (type [[ or ]] quickly to fling syntax glyphs + a tiny warp flash)`,
+		`v0.1.53 — slash rain /// (type "///" quickly to slice the CRT with diagonal phosphor shards)`,
+		`v0.1.54 — tab indent glitch ⇥ (press TAB to kick out stair-step phosphor bars near the cursor)`,
+		`v0.1.55 — semicolon comets ;;; (type ";;;" quickly to launch punctuation trails from the cursor)`,
+		`v0.1.56 — binary fireflies 0101 (type "0101" quickly to spawn glowing drifting bits near the cursor)`,
 	];
 
 	const hackLines = [
@@ -2018,6 +2336,24 @@ try: konami`,
 	{#if spaceWarpFlash}
 		<div class="space-warp-flash"></div>
 	{/if}
+	{#if bracketWarp}
+		<div class="bracket-warp"></div>
+	{/if}
+	{#if slashFlash}
+		<div class="slash-flash"></div>
+	{/if}
+	{#each slashShards as shard (shard.id)}
+		<div
+			class="slash-shard"
+			style="left: {shard.x}px; top: {shard.y}px; width: {shard.len}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --dur: {shard.duration}ms; --delay: {shard.delay}ms;"
+		></div>
+	{/each}
+	{#each tabIndentShards as shard (shard.id)}
+		<div
+			class="tab-indent-shard"
+			style="left: {shard.x}px; top: {shard.y}px; width: {shard.width}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --dur: {shard.duration}ms; --delay: {shard.delay}ms;"
+		></div>
+	{/each}
 	{#each spaceWarpStreaks as streak (streak.id)}
 		<div
 			class="space-warp-streak"
@@ -2127,12 +2463,36 @@ try: konami`,
 			{burst.char}
 		</div>
 	{/each}
+	{#each bracketPortals as portal (portal.id)}
+		<div
+			class="bracket-portal"
+			style="left: {portal.x}px; top: {portal.y}px; --dx: {portal.dx}px; --dy: {portal.dy}px; --spin: {portal.spin}deg; --dur: {portal.duration}ms; --delay: {portal.delay}ms; --scale: {portal.scale};"
+		>
+			{portal.glyph}
+		</div>
+	{/each}
 	{#each notFoundBursts as burst (burst.id)}
 		<div
 			class="not-found-burst"
 			style="left: {burst.x}px; top: {burst.y}px; --dx: {burst.dx}px; --dy: {burst.dy}px; --rot: {burst.rot}deg; --dur: {burst.duration}ms; --delay: {burst.delay}ms; --scale: {burst.scale};"
 		>
 			{burst.text}
+		</div>
+	{/each}
+	{#each semicolonComets as comet (comet.id)}
+		<div
+			class="semicolon-comet"
+			style="left: {comet.x}px; top: {comet.y}px; --dx: {comet.dx}px; --dy: {comet.dy}px; --rot: {comet.rot}deg; --dur: {comet.duration}ms; --delay: {comet.delay}ms; --size: {comet.size}rem;"
+		>
+			{comet.char}
+		</div>
+	{/each}
+	{#each binaryFireflies as fly (fly.id)}
+		<div
+			class="binary-firefly"
+			style="left: {fly.x}px; top: {fly.y}px; --dx: {fly.dx}px; --dy: {fly.dy}px; --rot: {fly.rot}deg; --dur: {fly.duration}ms; --delay: {fly.delay}ms; --scale: {fly.scale};"
+		>
+			{fly.bit}
 		</div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
@@ -2276,6 +2636,98 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), -50%) scaleX(1.75);
+			filter: blur(0.8px);
+		}
+	}
+
+	/* Slash rain (type /// quickly) */
+	.slash-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 253;
+		background:
+			linear-gradient(118deg, transparent 38%, color-mix(in oklab, var(--fg) 24%, white 76%) 49%, transparent 62%),
+			radial-gradient(circle at 54% 52%, color-mix(in oklab, var(--fg) 18%, transparent 82%) 0%, transparent 48%);
+		mix-blend-mode: screen;
+		animation: slash-flash 0.24s ease-out forwards;
+	}
+
+	.slash-shard {
+		position: fixed;
+		height: 1.6px;
+		pointer-events: none;
+		z-index: 252;
+		border-radius: 999px;
+		background: linear-gradient(90deg,
+			transparent 0%,
+			color-mix(in oklab, var(--fg) 30%, transparent 70%) 12%,
+			color-mix(in oklab, var(--fg) 96%, white 4%) 52%,
+			color-mix(in oklab, var(--fg) 24%, transparent 76%) 88%,
+			transparent 100%);
+		box-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 64%, white 36%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -50%) rotate(-32deg) scaleX(0.38);
+		animation: slash-shard-slice var(--dur) cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes slash-flash {
+		0% { opacity: 0; }
+		25% { opacity: 1; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes slash-shard-slice {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) rotate(-32deg) scaleX(0.38);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(-32deg) scaleX(1.42);
+			filter: blur(0.8px);
+		}
+	}
+
+	/* Tab indent glitch (press TAB) */
+	.tab-indent-shard {
+		position: fixed;
+		height: 2px;
+		pointer-events: none;
+		z-index: 252;
+		border-radius: 2px;
+		background: linear-gradient(90deg,
+			color-mix(in oklab, var(--fg) 96%, white 4%) 0%,
+			color-mix(in oklab, var(--fg) 36%, transparent 64%) 100%);
+		box-shadow: 0 0 7px var(--fg), 0 0 14px color-mix(in oklab, var(--fg) 64%, white 36%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -50%) skewX(-18deg) scaleX(0.35);
+		animation: tab-indent-shard-fly var(--dur) cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes tab-indent-shard-fly {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) skewX(-18deg) scaleX(0.35);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) skewX(-18deg) scaleX(1.24);
 			filter: blur(0.8px);
 		}
 	}
@@ -3055,6 +3507,59 @@ try: konami`,
 		}
 	}
 
+	/* Bracket portal (type [[ or ]] quickly) */
+	.bracket-warp {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 94;
+		background:
+			radial-gradient(circle at 50% 56%, color-mix(in oklab, var(--fg) 20%, transparent 80%) 0%, transparent 42%),
+			linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--fg) 16%, white 84%) 50%, transparent 100%);
+		mix-blend-mode: screen;
+		animation: bracket-warp-flash 0.28s ease-out forwards;
+	}
+
+	.bracket-portal {
+		position: fixed;
+		pointer-events: none;
+		z-index: 95;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 1rem;
+		color: color-mix(in oklab, var(--fg) 88%, white 12%);
+		text-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 68%, white 32%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: bracket-portal-float var(--dur) cubic-bezier(0.2, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes bracket-warp-flash {
+		0% { opacity: 0; }
+		20% { opacity: 0.92; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes bracket-portal-float {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.72)) rotate(0deg);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.1)) rotate(var(--spin));
+			filter: blur(0.9px);
+		}
+	}
+
 	/* 404 phantom (type "404" quickly) */
 	.not-found-burst {
 		position: fixed;
@@ -3085,6 +3590,76 @@ try: konami`,
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.08)) rotate(var(--rot));
 			filter: blur(0.9px);
+		}
+	}
+
+	/* Semicolon comets (type ;;; quickly) */
+	.semicolon-comet {
+		position: fixed;
+		pointer-events: none;
+		z-index: 95;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: var(--size);
+		line-height: 1;
+		color: color-mix(in oklab, var(--fg) 94%, white 6%);
+		text-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 68%, white 32%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: semicolon-comet-fly var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes semicolon-comet-fly {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.72) rotate(0deg);
+			filter: blur(0px);
+		}
+		16% {
+			opacity: 0.98;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.14) rotate(var(--rot));
+			filter: blur(0.95px);
+		}
+	}
+
+	/* Binary fireflies (type 0101 quickly) */
+	.binary-firefly {
+		position: fixed;
+		pointer-events: none;
+		z-index: 96;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.9rem;
+		line-height: 1;
+		color: color-mix(in oklab, var(--fg) 88%, white 12%);
+		text-shadow: 0 0 8px var(--fg), 0 0 18px color-mix(in oklab, var(--fg) 62%, white 38%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: binary-firefly-float var(--dur) cubic-bezier(0.2, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes binary-firefly-float {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.62)) rotate(0deg);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.98;
+		}
+		56% {
+			opacity: 0.82;
+			transform: translate(calc(-50% + calc(var(--dx) * 0.5)), calc(-50% + calc(var(--dy) * 0.58))) scale(calc(var(--scale) * 1.02)) rotate(calc(var(--rot) * 0.56));
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.2)) rotate(var(--rot));
+			filter: blur(1px);
 		}
 	}
 
