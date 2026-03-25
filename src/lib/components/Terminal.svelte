@@ -573,6 +573,26 @@ try: konami`,
 	let binaryBuffer = '';
 	let binaryLastKeyAt = 0;
 
+	// === SHIFT AURORA (hold SHIFT to charge a tiny overhead glow) ===
+	interface ShiftAuroraRune {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		spin: number;
+		duration: number;
+		delay: number;
+		char: string;
+		scale: number;
+	}
+	let shiftAuroraRunes: ShiftAuroraRune[] = [];
+	let shiftAuroraRuneId = 0;
+	let shiftDownAt = 0;
+	let shiftArmed = false;
+	let shiftAuroraFlash = false;
+	let shiftAuroraFlashTimeout: ReturnType<typeof setTimeout>;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -1245,6 +1265,7 @@ try: konami`,
 		clearTimeout(spaceWarpFlashTimeout);
 		clearTimeout(bracketWarpTimeout);
 		clearTimeout(slashFlashTimeout);
+		clearTimeout(shiftAuroraFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1613,6 +1634,58 @@ try: konami`,
 		}
 	}
 
+	function triggerShiftAurora() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const y = Math.max(54, (gridCursorVisible && lineHeight > 0 ? gridCursorY : window.innerHeight * 0.4) - 48);
+		const chars = ['^', '˄', '·', '*', '⟡', '~'];
+		const count = 12 + Math.floor(Math.random() * 8);
+
+		const runes: ShiftAuroraRune[] = Array.from({ length: count }, (_, i) => ({
+			id: shiftAuroraRuneId++,
+			x: x + (Math.random() - 0.5) * 190,
+			y: y + (Math.random() - 0.5) * 30,
+			dx: (Math.random() - 0.5) * 140,
+			dy: -18 - Math.random() * 66,
+			spin: (Math.random() - 0.5) * 120,
+			duration: 520 + Math.random() * 420,
+			delay: i * 12 + Math.random() * 120,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			scale: 0.7 + Math.random() * 0.58,
+		}));
+
+		shiftAuroraRunes = [...shiftAuroraRunes.slice(-70), ...runes];
+		runes.forEach((rune) => {
+			setTimeout(() => {
+				shiftAuroraRunes = shiftAuroraRunes.filter((r) => r.id !== rune.id);
+			}, rune.duration + rune.delay + 120);
+		});
+
+		shiftAuroraFlash = true;
+		clearTimeout(shiftAuroraFlashTimeout);
+		shiftAuroraFlashTimeout = setTimeout(() => {
+			shiftAuroraFlash = false;
+		}, 380);
+	}
+
+	function trackShiftAuroraDown(e: KeyboardEvent) {
+		if (e.key !== 'Shift' || e.repeat) return;
+		shiftDownAt = performance.now();
+		shiftArmed = true;
+	}
+
+	function trackShiftAuroraUp(e: KeyboardEvent) {
+		if (e.key !== 'Shift') return;
+		if (!shiftArmed || !shiftDownAt) {
+			shiftArmed = false;
+			shiftDownAt = 0;
+			return;
+		}
+		const heldMs = performance.now() - shiftDownAt;
+		shiftArmed = false;
+		shiftDownAt = 0;
+		if (heldMs >= 420) triggerShiftAurora();
+	}
+
 	function triggerSlashRain() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -1780,6 +1853,11 @@ try: konami`,
 	}
 
 	function handleKeyUp(e: KeyboardEvent) {
+		if (e.key === 'Shift') {
+			handleActivity();
+			trackShiftAuroraUp(e);
+			return;
+		}
 		if (e.key !== ' ') return;
 		handleActivity();
 		if (!spaceArmed || !spaceDownAt) {
@@ -1833,6 +1911,7 @@ try: konami`,
 		handleKonami(e);
 		handleActivity();
 		handleSpaceDown(e);
+		trackShiftAuroraDown(e);
 		spawnTypeBurst(e);
 		trackRapidTyping(e);
 		spawnEnterSweep(e);
@@ -1957,6 +2036,7 @@ try: konami`,
 		`v0.1.54 — tab indent glitch ⇥ (press TAB to kick out stair-step phosphor bars near the cursor)`,
 		`v0.1.55 — semicolon comets ;;; (type ";;;" quickly to launch punctuation trails from the cursor)`,
 		`v0.1.56 — binary fireflies 0101 (type "0101" quickly to spawn glowing drifting bits near the cursor)`,
+		`v0.1.57 — shift aurora ⇧ (hold SHIFT briefly, release to vent a tiny glyph aurora above the cursor)`,
 	];
 
 	const hackLines = [
@@ -2342,6 +2422,9 @@ try: konami`,
 	{#if slashFlash}
 		<div class="slash-flash"></div>
 	{/if}
+	{#if shiftAuroraFlash}
+		<div class="shift-aurora-flash"></div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2493,6 +2576,14 @@ try: konami`,
 			style="left: {fly.x}px; top: {fly.y}px; --dx: {fly.dx}px; --dy: {fly.dy}px; --rot: {fly.rot}deg; --dur: {fly.duration}ms; --delay: {fly.delay}ms; --scale: {fly.scale};"
 		>
 			{fly.bit}
+		</div>
+	{/each}
+	{#each shiftAuroraRunes as rune (rune.id)}
+		<div
+			class="shift-aurora-rune"
+			style="left: {rune.x}px; top: {rune.y}px; --dx: {rune.dx}px; --dy: {rune.dy}px; --spin: {rune.spin}deg; --dur: {rune.duration}ms; --delay: {rune.delay}ms; --scale: {rune.scale};"
+		>
+			{rune.char}
 		</div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
@@ -2695,6 +2786,60 @@ try: konami`,
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(-32deg) scaleX(1.42);
 			filter: blur(0.8px);
+		}
+	}
+
+	/* Shift aurora (hold SHIFT, release) */
+	.shift-aurora-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 253;
+		background:
+			radial-gradient(ellipse at 50% 34%, color-mix(in oklab, var(--fg) 20%, transparent 80%) 0%, transparent 48%),
+			linear-gradient(180deg, color-mix(in oklab, var(--fg) 16%, white 84%) 0%, transparent 34%);
+		mix-blend-mode: screen;
+		animation: shift-aurora-flash 0.38s ease-out forwards;
+	}
+
+	.shift-aurora-rune {
+		position: fixed;
+		pointer-events: none;
+		z-index: 254;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.94rem;
+		line-height: 1;
+		color: color-mix(in oklab, var(--fg) 90%, white 10%);
+		text-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 66%, white 34%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: shift-aurora-rise var(--dur) cubic-bezier(0.18, 0.78, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes shift-aurora-flash {
+		0% { opacity: 0; }
+		24% { opacity: 0.9; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes shift-aurora-rise {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.66)) rotate(0deg);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.12)) rotate(var(--spin));
+			filter: blur(0.9px);
 		}
 	}
 
