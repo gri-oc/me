@@ -593,6 +593,25 @@ try: konami`,
 	let shiftAuroraFlash = false;
 	let shiftAuroraFlashTimeout: ReturnType<typeof setTimeout>;
 
+	// === ESCAPE FRACTURE (double-tap ESC to vent panic shards) ===
+	interface EscapeShard {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		text: string;
+		scale: number;
+	}
+	let escapeShards: EscapeShard[] = [];
+	let escapeShardId = 0;
+	let escapeTapTimes: number[] = [];
+	let escapeFlash = false;
+	let escapeFlashTimeout: ReturnType<typeof setTimeout>;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -1266,6 +1285,7 @@ try: konami`,
 		clearTimeout(bracketWarpTimeout);
 		clearTimeout(slashFlashTimeout);
 		clearTimeout(shiftAuroraFlashTimeout);
+		clearTimeout(escapeFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1686,6 +1706,49 @@ try: konami`,
 		if (heldMs >= 420) triggerShiftAurora();
 	}
 
+	function triggerEscapeFracture() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const y = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const words = ['ESC', 'NOPE', 'ABORT', 'EXIT?'];
+		const count = 11 + Math.floor(Math.random() * 8);
+
+		const shards: EscapeShard[] = Array.from({ length: count }, (_, i) => ({
+			id: escapeShardId++,
+			x: x + (Math.random() - 0.5) * 90,
+			y: y + (Math.random() - 0.5) * 36,
+			dx: (Math.random() - 0.5) * 240,
+			dy: -20 - Math.random() * 130,
+			rot: (Math.random() - 0.5) * 140,
+			duration: 460 + Math.random() * 360,
+			delay: i * 12 + Math.random() * 100,
+			text: words[Math.floor(Math.random() * words.length)],
+			scale: 0.68 + Math.random() * 0.62,
+		}));
+
+		escapeShards = [...escapeShards.slice(-64), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				escapeShards = escapeShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + shard.delay + 160);
+		});
+
+		escapeFlash = true;
+		clearTimeout(escapeFlashTimeout);
+		escapeFlashTimeout = setTimeout(() => {
+			escapeFlash = false;
+		}, 260);
+	}
+
+	function trackEscapeFracture(e: KeyboardEvent) {
+		if (e.key !== 'Escape') return;
+		const now = performance.now();
+		escapeTapTimes = [...escapeTapTimes.filter((t) => now - t <= 650), now];
+		if (escapeTapTimes.length >= 2) {
+			escapeTapTimes = [];
+			triggerEscapeFracture();
+		}
+	}
+
 	function triggerSlashRain() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -1923,6 +1986,7 @@ try: konami`,
 		trackBinaryFireflies(e);
 		trackBracketPortal(e);
 		trackSlashRain(e);
+		trackEscapeFracture(e);
 		trackCapsRage(e);
 		trackBackspaceVoid(e);
 		trackTabIndentGlitch(e);
@@ -2037,6 +2101,7 @@ try: konami`,
 		`v0.1.55 — semicolon comets ;;; (type ";;;" quickly to launch punctuation trails from the cursor)`,
 		`v0.1.56 — binary fireflies 0101 (type "0101" quickly to spawn glowing drifting bits near the cursor)`,
 		`v0.1.57 — shift aurora ⇧ (hold SHIFT briefly, release to vent a tiny glyph aurora above the cursor)`,
+		`v0.1.58 — escape fracture esc esc (double-tap ESC to burst panic shards + a quick abort flash)`,
 	];
 
 	const hackLines = [
@@ -2425,6 +2490,9 @@ try: konami`,
 	{#if shiftAuroraFlash}
 		<div class="shift-aurora-flash"></div>
 	{/if}
+	{#if escapeFlash}
+		<div class="escape-fracture-flash"></div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2584,6 +2652,14 @@ try: konami`,
 			style="left: {rune.x}px; top: {rune.y}px; --dx: {rune.dx}px; --dy: {rune.dy}px; --spin: {rune.spin}deg; --dur: {rune.duration}ms; --delay: {rune.delay}ms; --scale: {rune.scale};"
 		>
 			{rune.char}
+		</div>
+	{/each}
+	{#each escapeShards as shard (shard.id)}
+		<div
+			class="escape-shard"
+			style="left: {shard.x}px; top: {shard.y}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --rot: {shard.rot}deg; --dur: {shard.duration}ms; --delay: {shard.delay}ms; --scale: {shard.scale};"
+		>
+			{shard.text}
 		</div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
@@ -2839,6 +2915,60 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.12)) rotate(var(--spin));
+			filter: blur(0.9px);
+		}
+	}
+
+	/* Escape fracture (double ESC) */
+	.escape-fracture-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 254;
+		background:
+			radial-gradient(circle at 50% 56%, color-mix(in oklab, var(--err) 22%, transparent 78%) 0%, transparent 44%),
+			linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--err) 18%, white 82%) 50%, transparent 100%);
+		mix-blend-mode: screen;
+		animation: escape-fracture-flash 0.26s ease-out forwards;
+	}
+
+	.escape-shard {
+		position: fixed;
+		pointer-events: none;
+		z-index: 255;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.78rem;
+		letter-spacing: 0.06em;
+		color: color-mix(in oklab, var(--err) 76%, var(--fg) 24%);
+		text-shadow: 0 0 8px color-mix(in oklab, var(--err) 70%, white 30%), 0 0 16px color-mix(in oklab, var(--fg) 58%, transparent 42%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: escape-shard-burst var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes escape-fracture-flash {
+		0% { opacity: 0; }
+		20% { opacity: 0.92; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes escape-shard-burst {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.72)) rotate(0deg);
+			filter: blur(0px);
+		}
+		16% {
+			opacity: 0.96;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.12)) rotate(var(--rot));
 			filter: blur(0.9px);
 		}
 	}
