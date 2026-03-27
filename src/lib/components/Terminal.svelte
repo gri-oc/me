@@ -555,6 +555,26 @@ try: konami`,
 	let semicolonBuffer = '';
 	let semicolonLastKeyAt = 0;
 
+	// === PROMPT STORM (type $$$ quickly to spill shell sigils) ===
+	interface PromptShard {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		scale: number;
+		char: string;
+	}
+	let promptShards: PromptShard[] = [];
+	let promptShardId = 0;
+	let promptBuffer = '';
+	let promptLastKeyAt = 0;
+	let promptStormFlash = false;
+	let promptStormFlashTimeout: ReturnType<typeof setTimeout>;
+
 	// === BINARY FIREFLIES (type 0101 quickly to spawn tiny orbiting bits) ===
 	interface BinaryFirefly {
 		id: number;
@@ -1286,6 +1306,7 @@ try: konami`,
 		clearTimeout(slashFlashTimeout);
 		clearTimeout(shiftAuroraFlashTimeout);
 		clearTimeout(escapeFlashTimeout);
+		clearTimeout(promptStormFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1605,6 +1626,59 @@ try: konami`,
 
 		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
 			semicolonBuffer = '';
+		}
+	}
+
+	function triggerPromptStorm() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const chars = ['$', '>', '_', '#'];
+		const count = 15 + Math.floor(Math.random() * 8);
+
+		const shards: PromptShard[] = Array.from({ length: count }, (_, i) => ({
+			id: promptShardId++,
+			x: originX + (Math.random() - 0.5) * 96,
+			y: originY + (Math.random() - 0.5) * 40,
+			dx: (Math.random() - 0.5) * 210,
+			dy: -26 - Math.random() * 118,
+			rot: (Math.random() - 0.5) * 170,
+			duration: 480 + Math.random() * 440,
+			delay: i * 10 + Math.random() * 100,
+			scale: 0.72 + Math.random() * 0.58,
+			char: chars[Math.floor(Math.random() * chars.length)],
+		}));
+
+		promptShards = [...promptShards.slice(-90), ...shards];
+		shards.forEach((shard) => {
+			setTimeout(() => {
+				promptShards = promptShards.filter((s) => s.id !== shard.id);
+			}, shard.duration + shard.delay + 140);
+		});
+
+		promptStormFlash = true;
+		clearTimeout(promptStormFlashTimeout);
+		promptStormFlashTimeout = setTimeout(() => {
+			promptStormFlash = false;
+		}, 280);
+	}
+
+	function trackPromptStorm(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - promptLastKeyAt > 900) promptBuffer = '';
+		promptLastKeyAt = now;
+
+		if (e.key === '$') {
+			promptBuffer = (promptBuffer + '$').slice(-3);
+			if (promptBuffer === '$$$') {
+				promptBuffer = '';
+				triggerPromptStorm();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			promptBuffer = '';
 		}
 	}
 
@@ -1983,6 +2057,7 @@ try: konami`,
 		trackPanicStorm(e);
 		trackNotFoundCode(e);
 		trackSemicolonComets(e);
+		trackPromptStorm(e);
 		trackBinaryFireflies(e);
 		trackBracketPortal(e);
 		trackSlashRain(e);
@@ -2102,6 +2177,7 @@ try: konami`,
 		`v0.1.56 — binary fireflies 0101 (type "0101" quickly to spawn glowing drifting bits near the cursor)`,
 		`v0.1.57 — shift aurora ⇧ (hold SHIFT briefly, release to vent a tiny glyph aurora above the cursor)`,
 		`v0.1.58 — escape fracture esc esc (double-tap ESC to burst panic shards + a quick abort flash)`,
+		`v0.1.59 — prompt storm $$$ (type "$$$" quickly to spill shell sigils + a tiny phosphor flash)`,
 	];
 
 	const hackLines = [
@@ -2493,6 +2569,9 @@ try: konami`,
 	{#if escapeFlash}
 		<div class="escape-fracture-flash"></div>
 	{/if}
+	{#if promptStormFlash}
+		<div class="prompt-storm-flash"></div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2636,6 +2715,14 @@ try: konami`,
 			style="left: {comet.x}px; top: {comet.y}px; --dx: {comet.dx}px; --dy: {comet.dy}px; --rot: {comet.rot}deg; --dur: {comet.duration}ms; --delay: {comet.delay}ms; --size: {comet.size}rem;"
 		>
 			{comet.char}
+		</div>
+	{/each}
+	{#each promptShards as shard (shard.id)}
+		<div
+			class="prompt-shard"
+			style="left: {shard.x}px; top: {shard.y}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --rot: {shard.rot}deg; --dur: {shard.duration}ms; --delay: {shard.delay}ms; --scale: {shard.scale};"
+		>
+			{shard.char}
 		</div>
 	{/each}
 	{#each binaryFireflies as fly (fly.id)}
@@ -3898,6 +3985,60 @@ try: konami`,
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.14) rotate(var(--rot));
 			filter: blur(0.95px);
+		}
+	}
+
+	/* Prompt storm (type $$$ quickly) */
+	.prompt-storm-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 253;
+		background:
+			radial-gradient(circle at 50% 58%, color-mix(in oklab, var(--fg) 26%, transparent 74%) 0%, transparent 44%),
+			linear-gradient(180deg, color-mix(in oklab, var(--fg) 16%, white 84%) 0%, transparent 66%);
+		mix-blend-mode: screen;
+		animation: prompt-storm-flash 0.28s ease-out forwards;
+	}
+
+	.prompt-shard {
+		position: fixed;
+		pointer-events: none;
+		z-index: 96;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.95rem;
+		line-height: 1;
+		color: color-mix(in oklab, var(--fg) 92%, white 8%);
+		text-shadow: 0 0 8px var(--fg), 0 0 18px color-mix(in oklab, var(--fg) 66%, white 34%);
+		mix-blend-mode: screen;
+		transform: translate(-50%, -50%);
+		opacity: 0;
+		animation: prompt-shard-burst var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes prompt-storm-flash {
+		0% { opacity: 0; }
+		24% { opacity: 1; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes prompt-shard-burst {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.66)) rotate(0deg);
+			filter: blur(0px);
+		}
+		17% {
+			opacity: 0.98;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.16)) rotate(var(--rot));
+			filter: blur(0.9px);
 		}
 	}
 
