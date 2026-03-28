@@ -416,6 +416,24 @@ try: konami`,
 	let panicLastKeyAt = 0;
 	let panicStorming = false;
 
+	// === QUESTION GLYPHS (double ?? summons tiny oracle marks) ===
+	interface QuestionGlyph {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		char: string;
+		scale: number;
+	}
+	let questionGlyphs: QuestionGlyph[] = [];
+	let questionGlyphId = 0;
+	let questionBuffer = '';
+	let questionLastKeyAt = 0;
+
 	// === SLASH RAIN (type /// quickly to slice the CRT) ===
 	interface SlashShard {
 		id: number;
@@ -1497,6 +1515,53 @@ try: konami`,
 		}
 	}
 
+	function triggerQuestionGlyphs() {
+		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const chars = ['?', '¿', '‽', '⸮', '?'];
+		const count = 7 + Math.floor(Math.random() * 5);
+
+		const glyphs: QuestionGlyph[] = Array.from({ length: count }, (_, i) => ({
+			id: questionGlyphId++,
+			x: originX + (Math.random() - 0.5) * 88,
+			y: originY + (Math.random() - 0.5) * 30,
+			dx: (Math.random() - 0.5) * 170,
+			dy: -24 - Math.random() * 92,
+			rot: (Math.random() - 0.5) * 120,
+			duration: 480 + Math.random() * 420,
+			delay: i * 14 + Math.random() * 70,
+			char: chars[Math.floor(Math.random() * chars.length)],
+			scale: 0.72 + Math.random() * 0.55,
+		}));
+
+		questionGlyphs = [...questionGlyphs.slice(-64), ...glyphs];
+		glyphs.forEach((glyph) => {
+			setTimeout(() => {
+				questionGlyphs = questionGlyphs.filter((g) => g.id !== glyph.id);
+			}, glyph.duration + glyph.delay + 140);
+		});
+	}
+
+	function trackQuestionGlyphs(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - questionLastKeyAt > 750) questionBuffer = '';
+		questionLastKeyAt = now;
+
+		if (e.key === '?') {
+			questionBuffer = (questionBuffer + '?').slice(-2);
+			if (questionBuffer === '??') {
+				questionBuffer = '';
+				triggerQuestionGlyphs();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			questionBuffer = '';
+		}
+	}
+
 	function triggerBracketPortal() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -2055,6 +2120,7 @@ try: konami`,
 		trackSecretFrog(e);
 		trackEllipsisPing(e);
 		trackPanicStorm(e);
+		trackQuestionGlyphs(e);
 		trackNotFoundCode(e);
 		trackSemicolonComets(e);
 		trackPromptStorm(e);
@@ -2178,6 +2244,7 @@ try: konami`,
 		`v0.1.57 — shift aurora ⇧ (hold SHIFT briefly, release to vent a tiny glyph aurora above the cursor)`,
 		`v0.1.58 — escape fracture esc esc (double-tap ESC to burst panic shards + a quick abort flash)`,
 		`v0.1.59 — prompt storm $$$ (type "$$$" quickly to spill shell sigils + a tiny phosphor flash)`,
+		`v0.1.60 — question glyphs ?? (double-tap "?" to release tiny oracle punctuation around the cursor)`,
 	];
 
 	const hackLines = [
@@ -2611,6 +2678,14 @@ try: konami`,
 			style="left: {drop.x}%; --drift: {drop.drift}px; --dur: {drop.duration}ms; --delay: {drop.delay}ms; --spin: {drop.spin}deg;"
 		>
 			{drop.char}
+		</div>
+	{/each}
+	{#each questionGlyphs as glyph (glyph.id)}
+		<div
+			class="question-glyph"
+			style="left: {glyph.x}px; top: {glyph.y}px; --dx: {glyph.dx}px; --dy: {glyph.dy}px; --rot: {glyph.rot}deg; --dur: {glyph.duration}ms; --delay: {glyph.delay}ms; --scale: {glyph.scale};"
+		>
+			{glyph.char}
 		</div>
 	{/each}
 	{#each pasteCascadeGlyphs as glyph (glyph.id)}
@@ -3441,6 +3516,38 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translateX(var(--drift)) translateY(calc(100vh + 60px)) rotate(var(--spin)) scale(1.1);
+		}
+	}
+
+	/* Double question mark oracle burst (type ?? quickly) */
+	.question-glyph {
+		position: fixed;
+		pointer-events: none;
+		z-index: 91;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.92rem;
+		color: color-mix(in oklab, var(--fg) 86%, white 14%);
+		text-shadow: 0 0 7px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 66%, white 34%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -50%);
+		animation: question-glyph-pop var(--dur) cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes question-glyph-pop {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.75)) rotate(0deg);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.96;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.1)) rotate(var(--rot));
+			filter: blur(0.9px);
 		}
 	}
 
