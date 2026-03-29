@@ -650,6 +650,26 @@ try: konami`,
 	let escapeFlash = false;
 	let escapeFlashTimeout: ReturnType<typeof setTimeout>;
 
+	// === SUDO DENIED AURA (type "sudo" quickly) ===
+	interface SudoSigil {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		scale: number;
+		text: string;
+	}
+	let sudoSigils: SudoSigil[] = [];
+	let sudoSigilId = 0;
+	let sudoBuffer = '';
+	let sudoLastKeyAt = 0;
+	let sudoWarning = false;
+	let sudoWarningTimeout: ReturnType<typeof setTimeout>;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -1325,6 +1345,7 @@ try: konami`,
 		clearTimeout(shiftAuroraFlashTimeout);
 		clearTimeout(escapeFlashTimeout);
 		clearTimeout(promptStormFlashTimeout);
+		clearTimeout(sudoWarningTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1888,6 +1909,52 @@ try: konami`,
 		}
 	}
 
+	function triggerSudoDeniedAura() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const y = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const glyphs = ['sudo', 'root', 'denied', '🔒'];
+		const count = 10 + Math.floor(Math.random() * 6);
+
+		const sigils: SudoSigil[] = Array.from({ length: count }, (_, i) => ({
+			id: sudoSigilId++,
+			x: x + (Math.random() - 0.5) * 100,
+			y: y + (Math.random() - 0.5) * 40,
+			dx: (Math.random() - 0.5) * 220,
+			dy: -26 - Math.random() * 126,
+			rot: (Math.random() - 0.5) * 160,
+			duration: 460 + Math.random() * 360,
+			delay: i * 10 + Math.random() * 80,
+			scale: 0.68 + Math.random() * 0.62,
+			text: glyphs[Math.floor(Math.random() * glyphs.length)],
+		}));
+
+		sudoSigils = [...sudoSigils.slice(-64), ...sigils];
+		sigils.forEach((sigil) => {
+			setTimeout(() => {
+				sudoSigils = sudoSigils.filter((s) => s.id !== sigil.id);
+			}, sigil.duration + sigil.delay + 140);
+		});
+
+		sudoWarning = true;
+		clearTimeout(sudoWarningTimeout);
+		sudoWarningTimeout = setTimeout(() => {
+			sudoWarning = false;
+		}, 780);
+	}
+
+	function trackSudoDeniedAura(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		if (e.key.length !== 1) return;
+		const now = performance.now();
+		if (now - sudoLastKeyAt > 1200) sudoBuffer = '';
+		sudoLastKeyAt = now;
+		sudoBuffer = (sudoBuffer + e.key.toLowerCase()).slice(-4);
+		if (sudoBuffer === 'sudo') {
+			sudoBuffer = '';
+			triggerSudoDeniedAura();
+		}
+	}
+
 	function triggerSlashRain() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -2128,6 +2195,7 @@ try: konami`,
 		trackBracketPortal(e);
 		trackSlashRain(e);
 		trackEscapeFracture(e);
+		trackSudoDeniedAura(e);
 		trackCapsRage(e);
 		trackBackspaceVoid(e);
 		trackTabIndentGlitch(e);
@@ -2245,6 +2313,7 @@ try: konami`,
 		`v0.1.58 — escape fracture esc esc (double-tap ESC to burst panic shards + a quick abort flash)`,
 		`v0.1.59 — prompt storm $$$ (type "$$$" quickly to spill shell sigils + a tiny phosphor flash)`,
 		`v0.1.60 — question glyphs ?? (double-tap "?" to release tiny oracle punctuation around the cursor)`,
+		`v0.1.61 — sudo denied aura (type "sudo" quickly to trigger lock sigils + permission denied pulse)`,
 	];
 
 	const hackLines = [
@@ -2639,6 +2708,10 @@ try: konami`,
 	{#if promptStormFlash}
 		<div class="prompt-storm-flash"></div>
 	{/if}
+	{#if sudoWarning}
+		<div class="sudo-warning-flash"></div>
+		<div class="sudo-warning-banner">permission denied.</div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2822,6 +2895,14 @@ try: konami`,
 			style="left: {shard.x}px; top: {shard.y}px; --dx: {shard.dx}px; --dy: {shard.dy}px; --rot: {shard.rot}deg; --dur: {shard.duration}ms; --delay: {shard.delay}ms; --scale: {shard.scale};"
 		>
 			{shard.text}
+		</div>
+	{/each}
+	{#each sudoSigils as sigil (sigil.id)}
+		<div
+			class="sudo-sigil"
+			style="left: {sigil.x}px; top: {sigil.y}px; --dx: {sigil.dx}px; --dy: {sigil.dy}px; --rot: {sigil.rot}deg; --dur: {sigil.duration}ms; --delay: {sigil.delay}ms; --scale: {sigil.scale};"
+		>
+			{sigil.text}
 		</div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
@@ -3131,6 +3212,98 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.12)) rotate(var(--rot));
+			filter: blur(0.9px);
+		}
+	}
+
+	/* Sudo denied aura (type sudo quickly) */
+	.sudo-warning-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 254;
+		background:
+			radial-gradient(circle at 50% 58%, color-mix(in oklab, var(--err) 20%, transparent 80%) 0%, transparent 44%),
+			linear-gradient(180deg, color-mix(in oklab, var(--err) 10%, transparent 90%) 0%, transparent 70%);
+		mix-blend-mode: screen;
+		animation: sudo-warning-flash 0.78s ease-out forwards;
+	}
+
+	.sudo-warning-banner {
+		position: fixed;
+		left: 50%;
+		top: 13%;
+		transform: translate(-50%, -50%);
+		pointer-events: none;
+		z-index: 256;
+		padding: 0.2rem 0.55rem;
+		border: 1px solid color-mix(in oklab, var(--err) 72%, var(--fg) 28%);
+		border-radius: 4px;
+		font-size: 0.72rem;
+		letter-spacing: 0.13em;
+		text-transform: uppercase;
+		color: color-mix(in oklab, var(--err) 86%, white 14%);
+		text-shadow: 0 0 8px color-mix(in oklab, var(--err) 74%, white 26%);
+		background: color-mix(in oklab, var(--bg) 72%, var(--err) 28%);
+		box-shadow: 0 0 0 1px color-mix(in oklab, var(--err) 26%, transparent 74%), 0 0 18px color-mix(in oklab, var(--err) 42%, transparent 58%);
+		animation: sudo-warning-banner 0.78s ease-out forwards;
+	}
+
+	.sudo-sigil {
+		position: fixed;
+		pointer-events: none;
+		z-index: 255;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.74rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: color-mix(in oklab, var(--err) 80%, var(--fg) 20%);
+		text-shadow: 0 0 8px color-mix(in oklab, var(--err) 74%, white 26%), 0 0 15px color-mix(in oklab, var(--err) 36%, transparent 64%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -50%);
+		animation: sudo-sigil-rise var(--dur) cubic-bezier(0.2, 0.78, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes sudo-warning-flash {
+		0% { opacity: 0; }
+		14% { opacity: 0.92; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes sudo-warning-banner {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(0.92);
+			filter: blur(0.6px);
+		}
+		16% {
+			opacity: 1;
+			transform: translate(-50%, -50%) scale(1);
+			filter: blur(0px);
+		}
+		100% {
+			opacity: 0;
+			transform: translate(-50%, -58%) scale(1.01);
+			filter: blur(0.7px);
+		}
+	}
+
+	@keyframes sudo-sigil-rise {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.7)) rotate(0deg);
+		}
+		16% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.08)) rotate(var(--rot));
 			filter: blur(0.9px);
 		}
 	}
