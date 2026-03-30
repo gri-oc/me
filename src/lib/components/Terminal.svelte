@@ -670,6 +670,26 @@ try: konami`,
 	let sudoWarning = false;
 	let sudoWarningTimeout: ReturnType<typeof setTimeout>;
 
+	// === PLUS LATTICE (+++) ===
+	interface PlusLatticeNode {
+		id: number;
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		duration: number;
+		delay: number;
+		scale: number;
+		glyph: string;
+	}
+	let plusLatticeNodes: PlusLatticeNode[] = [];
+	let plusLatticeNodeId = 0;
+	let plusBuffer = '';
+	let plusLastKeyAt = 0;
+	let plusLatticeFlash = false;
+	let plusLatticeFlashTimeout: ReturnType<typeof setTimeout>;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -1346,6 +1366,7 @@ try: konami`,
 		clearTimeout(escapeFlashTimeout);
 		clearTimeout(promptStormFlashTimeout);
 		clearTimeout(sudoWarningTimeout);
+		clearTimeout(plusLatticeFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -1955,6 +1976,59 @@ try: konami`,
 		}
 	}
 
+	function triggerPlusLattice() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const y = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
+		const glyphs = ['+', '✚', '┼', '╋'];
+		const count = 12 + Math.floor(Math.random() * 8);
+
+		const nodes: PlusLatticeNode[] = Array.from({ length: count }, (_, i) => ({
+			id: plusLatticeNodeId++,
+			x: x + (Math.random() - 0.5) * 110,
+			y: y + (Math.random() - 0.5) * 38,
+			dx: (Math.random() - 0.5) * 200,
+			dy: -20 - Math.random() * 120,
+			rot: (Math.random() - 0.5) * 160,
+			duration: 460 + Math.random() * 360,
+			delay: i * 9 + Math.random() * 90,
+			scale: 0.7 + Math.random() * 0.65,
+			glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+		}));
+
+		plusLatticeNodes = [...plusLatticeNodes.slice(-80), ...nodes];
+		nodes.forEach((node) => {
+			setTimeout(() => {
+				plusLatticeNodes = plusLatticeNodes.filter((n) => n.id !== node.id);
+			}, node.duration + node.delay + 140);
+		});
+
+		plusLatticeFlash = true;
+		clearTimeout(plusLatticeFlashTimeout);
+		plusLatticeFlashTimeout = setTimeout(() => {
+			plusLatticeFlash = false;
+		}, 320);
+	}
+
+	function trackPlusLattice(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - plusLastKeyAt > 900) plusBuffer = '';
+		plusLastKeyAt = now;
+
+		if (e.key === '+') {
+			plusBuffer = (plusBuffer + '+').slice(-3);
+			if (plusBuffer === '+++') {
+				plusBuffer = '';
+				triggerPlusLattice();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			plusBuffer = '';
+		}
+	}
+
 	function triggerSlashRain() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -2196,6 +2270,7 @@ try: konami`,
 		trackSlashRain(e);
 		trackEscapeFracture(e);
 		trackSudoDeniedAura(e);
+		trackPlusLattice(e);
 		trackCapsRage(e);
 		trackBackspaceVoid(e);
 		trackTabIndentGlitch(e);
@@ -2314,6 +2389,7 @@ try: konami`,
 		`v0.1.59 — prompt storm $$$ (type "$$$" quickly to spill shell sigils + a tiny phosphor flash)`,
 		`v0.1.60 — question glyphs ?? (double-tap "?" to release tiny oracle punctuation around the cursor)`,
 		`v0.1.61 — sudo denied aura (type "sudo" quickly to trigger lock sigils + permission denied pulse)`,
+		`v0.1.62 — plus lattice +++ (type "+++" quickly to spawn CRT cross-glyphs + a tiny geometry flash)`,
 	];
 
 	const hackLines = [
@@ -2712,6 +2788,9 @@ try: konami`,
 		<div class="sudo-warning-flash"></div>
 		<div class="sudo-warning-banner">permission denied.</div>
 	{/if}
+	{#if plusLatticeFlash}
+		<div class="plus-lattice-flash"></div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2903,6 +2982,14 @@ try: konami`,
 			style="left: {sigil.x}px; top: {sigil.y}px; --dx: {sigil.dx}px; --dy: {sigil.dy}px; --rot: {sigil.rot}deg; --dur: {sigil.duration}ms; --delay: {sigil.delay}ms; --scale: {sigil.scale};"
 		>
 			{sigil.text}
+		</div>
+	{/each}
+	{#each plusLatticeNodes as node (node.id)}
+		<div
+			class="plus-lattice-node"
+			style="left: {node.x}px; top: {node.y}px; --dx: {node.dx}px; --dy: {node.dy}px; --rot: {node.rot}deg; --dur: {node.duration}ms; --delay: {node.delay}ms; --scale: {node.scale};"
+		>
+			{node.glyph}
 		</div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
@@ -3304,6 +3391,69 @@ try: konami`,
 		100% {
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.08)) rotate(var(--rot));
+			filter: blur(0.9px);
+		}
+	}
+
+	/* Plus lattice (+++) */
+	.plus-lattice-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 253;
+		background:
+			repeating-linear-gradient(90deg,
+				transparent 0,
+				transparent 10px,
+				color-mix(in oklab, var(--fg) 12%, transparent 88%) 11px,
+				transparent 12px),
+			repeating-linear-gradient(0deg,
+				transparent 0,
+				transparent 10px,
+				color-mix(in oklab, var(--fg) 12%, transparent 88%) 11px,
+				transparent 12px),
+			radial-gradient(circle at 50% 55%, color-mix(in oklab, var(--fg) 20%, transparent 80%) 0%, transparent 46%);
+		mix-blend-mode: screen;
+		animation: plus-lattice-flash 0.32s ease-out forwards;
+	}
+
+	.plus-lattice-node {
+		position: fixed;
+		pointer-events: none;
+		z-index: 255;
+		font-family: 'IBM Plex Mono', monospace;
+		font-size: 0.88rem;
+		line-height: 1;
+		color: color-mix(in oklab, var(--fg) 92%, white 8%);
+		text-shadow: 0 0 8px var(--fg), 0 0 16px color-mix(in oklab, var(--fg) 70%, white 30%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -50%);
+		animation: plus-lattice-node-float var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	@keyframes plus-lattice-flash {
+		0% { opacity: 0; }
+		24% { opacity: 0.92; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes plus-lattice-node-float {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -50%) scale(calc(var(--scale) * 0.72)) rotate(0deg);
+			filter: blur(0px);
+		}
+		18% {
+			opacity: 0.95;
+		}
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.14)) rotate(var(--rot));
 			filter: blur(0.9px);
 		}
 	}
