@@ -690,6 +690,23 @@ try: konami`,
 	let plusLatticeFlash = false;
 	let plusLatticeFlashTimeout: ReturnType<typeof setTimeout>;
 
+	// === PIPE CATHEDRAL (|||) ===
+	interface PipeCathedralBeam {
+		id: number;
+		x: number;
+		drift: number;
+		length: number;
+		delay: number;
+		duration: number;
+		fromTop: boolean;
+	}
+	let pipeCathedralBeams: PipeCathedralBeam[] = [];
+	let pipeCathedralBeamId = 0;
+	let pipeBuffer = '';
+	let pipeLastKeyAt = 0;
+	let pipeCathedralFlash = false;
+	let pipeCathedralFlashTimeout: ReturnType<typeof setTimeout>;
+
 	function spawnSparks(e: MouseEvent) {
 		const count = 6 + Math.floor(Math.random() * 6);
 		const newSparks: Spark[] = [];
@@ -1367,6 +1384,7 @@ try: konami`,
 		clearTimeout(promptStormFlashTimeout);
 		clearTimeout(sudoWarningTimeout);
 		clearTimeout(plusLatticeFlashTimeout);
+		clearTimeout(pipeCathedralFlashTimeout);
 		document.removeEventListener('visibilitychange', handleVisibilityChange);
 		window.removeEventListener('resize', handleResize);
 	});
@@ -2029,6 +2047,54 @@ try: konami`,
 		}
 	}
 
+	function triggerPipeCathedral() {
+		const x = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
+		const count = 10 + Math.floor(Math.random() * 7);
+
+		const beams: PipeCathedralBeam[] = Array.from({ length: count }, (_, i) => ({
+			id: pipeCathedralBeamId++,
+			x: x + (Math.random() - 0.5) * 180,
+			drift: (Math.random() - 0.5) * 110,
+			length: 80 + Math.random() * 200,
+			delay: i * 12 + Math.random() * 90,
+			duration: 360 + Math.random() * 340,
+			fromTop: Math.random() > 0.5,
+		}));
+
+		pipeCathedralBeams = [...pipeCathedralBeams.slice(-80), ...beams];
+		beams.forEach((beam) => {
+			setTimeout(() => {
+				pipeCathedralBeams = pipeCathedralBeams.filter((b) => b.id !== beam.id);
+			}, beam.duration + beam.delay + 140);
+		});
+
+		pipeCathedralFlash = true;
+		clearTimeout(pipeCathedralFlashTimeout);
+		pipeCathedralFlashTimeout = setTimeout(() => {
+			pipeCathedralFlash = false;
+		}, 300);
+	}
+
+	function trackPipeCathedral(e: KeyboardEvent) {
+		if (e.ctrlKey || e.metaKey || e.altKey) return;
+		const now = performance.now();
+		if (now - pipeLastKeyAt > 850) pipeBuffer = '';
+		pipeLastKeyAt = now;
+
+		if (e.key === '|') {
+			pipeBuffer = (pipeBuffer + '|').slice(-3);
+			if (pipeBuffer === '|||') {
+				pipeBuffer = '';
+				triggerPipeCathedral();
+			}
+			return;
+		}
+
+		if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace' || e.key === ' ') {
+			pipeBuffer = '';
+		}
+	}
+
 	function triggerSlashRain() {
 		const originX = gridCursorVisible && charWidth > 0 ? gridCursorX + charWidth * 0.5 : window.innerWidth * 0.5;
 		const originY = gridCursorVisible && lineHeight > 0 ? gridCursorY + lineHeight * 0.6 : window.innerHeight * 0.55;
@@ -2271,6 +2337,7 @@ try: konami`,
 		trackEscapeFracture(e);
 		trackSudoDeniedAura(e);
 		trackPlusLattice(e);
+		trackPipeCathedral(e);
 		trackCapsRage(e);
 		trackBackspaceVoid(e);
 		trackTabIndentGlitch(e);
@@ -2390,6 +2457,7 @@ try: konami`,
 		`v0.1.60 — question glyphs ?? (double-tap "?" to release tiny oracle punctuation around the cursor)`,
 		`v0.1.61 — sudo denied aura (type "sudo" quickly to trigger lock sigils + permission denied pulse)`,
 		`v0.1.62 — plus lattice +++ (type "+++" quickly to spawn CRT cross-glyphs + a tiny geometry flash)`,
+		`v0.1.63 — pipe cathedral ||| (type "|||" quickly to summon vertical phosphor beams from above/below)`,
 	];
 
 	const hackLines = [
@@ -2791,6 +2859,9 @@ try: konami`,
 	{#if plusLatticeFlash}
 		<div class="plus-lattice-flash"></div>
 	{/if}
+	{#if pipeCathedralFlash}
+		<div class="pipe-cathedral-flash"></div>
+	{/if}
 	{#each slashShards as shard (shard.id)}
 		<div
 			class="slash-shard"
@@ -2991,6 +3062,13 @@ try: konami`,
 		>
 			{node.glyph}
 		</div>
+	{/each}
+	{#each pipeCathedralBeams as beam (beam.id)}
+		<div
+			class="pipe-cathedral-beam"
+			class:from-top={beam.fromTop}
+			style="left: {beam.x}px; --drift: {beam.drift}px; --len: {beam.length}px; --dur: {beam.duration}ms; --delay: {beam.delay}ms;"
+		></div>
 	{/each}
 	{#each copyGhosts as ghost (ghost.id)}
 		<div
@@ -3455,6 +3533,91 @@ try: konami`,
 			opacity: 0;
 			transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(calc(var(--scale) * 1.14)) rotate(var(--rot));
 			filter: blur(0.9px);
+		}
+	}
+
+	/* Pipe cathedral (|||) */
+	.pipe-cathedral-flash {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		pointer-events: none;
+		z-index: 253;
+		background:
+			repeating-linear-gradient(90deg,
+				transparent 0,
+				transparent 26px,
+				color-mix(in oklab, var(--fg) 14%, transparent 86%) 27px,
+				transparent 29px),
+			radial-gradient(ellipse at 50% 50%, color-mix(in oklab, var(--fg) 18%, transparent 82%) 0%, transparent 52%);
+		mix-blend-mode: screen;
+		animation: pipe-cathedral-flash 0.3s ease-out forwards;
+	}
+
+	.pipe-cathedral-beam {
+		position: fixed;
+		top: 0;
+		width: 2px;
+		height: var(--len);
+		pointer-events: none;
+		z-index: 255;
+		border-radius: 999px;
+		background: linear-gradient(180deg,
+			color-mix(in oklab, var(--fg) 20%, transparent 80%) 0%,
+			color-mix(in oklab, var(--fg) 98%, white 2%) 48%,
+			color-mix(in oklab, var(--fg) 16%, transparent 84%) 100%);
+		box-shadow: 0 0 9px color-mix(in oklab, var(--fg) 85%, white 15%), 0 0 18px color-mix(in oklab, var(--fg) 50%, transparent 50%);
+		mix-blend-mode: screen;
+		opacity: 0;
+		transform: translate(-50%, -110%) scaleY(0.2);
+		animation: pipe-cathedral-drop var(--dur) cubic-bezier(0.18, 0.76, 0.2, 1) forwards;
+		animation-delay: var(--delay);
+	}
+
+	.pipe-cathedral-beam.from-top {
+		top: 0;
+		transform: translate(-50%, -110%) scaleY(0.2);
+		animation-name: pipe-cathedral-drop;
+	}
+
+	.pipe-cathedral-beam:not(.from-top) {
+		top: auto;
+		bottom: 0;
+		transform: translate(-50%, 110%) scaleY(0.2);
+		animation-name: pipe-cathedral-rise;
+	}
+
+	@keyframes pipe-cathedral-flash {
+		0% { opacity: 0; }
+		22% { opacity: 0.94; }
+		100% { opacity: 0; }
+	}
+
+	@keyframes pipe-cathedral-drop {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, -110%) scaleY(0.2);
+		}
+		18% { opacity: 0.95; }
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--drift)), calc(45vh - var(--len))) scaleY(1.16);
+			filter: blur(0.8px);
+		}
+	}
+
+	@keyframes pipe-cathedral-rise {
+		0% {
+			opacity: 0;
+			transform: translate(-50%, 110%) scaleY(0.2);
+		}
+		18% { opacity: 0.95; }
+		100% {
+			opacity: 0;
+			transform: translate(calc(-50% + var(--drift)), calc(-45vh + var(--len))) scaleY(1.16);
+			filter: blur(0.8px);
 		}
 	}
 
